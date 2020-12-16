@@ -1,0 +1,2 @@
+# minaxnt
+Axentro miner
