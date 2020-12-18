@@ -146,18 +146,14 @@ func recv(c *miner.Client, minerId string) {
 			c.UpdateBlock(resp.Block)
 			for i := 0; i < *process; i++ {
 				pool.Submit(func() {
-
-					mb := c.Block()
-					mbOldIndex := mb.Index
+					var mb types.MinerBlock
 					for {
+						mb = c.Block()
 						log.Debugf("Start mining block index: %d", mb.Index)
 						blockNonce := miner.Mining(mb, resp.MiningDifficulty)
-						mb = c.Block()
-						if mb.Index != mbOldIndex {
-							mbOldIndex = mb.Index
+						if c.Block().Index != mb.Index {
 							continue
 						}
-						mbOldIndex = mb.Index
 						go func() {
 							log.Infof("Found new nonce(%d): %s", resp.MiningDifficulty, blockNonce.Nonce)
 							log.Debugf("=> Found block: %+v", blockNonce)
