@@ -116,7 +116,6 @@ func send(c *miner.Client) {
 				log.Error("Can't send data to the blockchain:", err)
 				return
 			}
-		default:
 		}
 	}
 }
