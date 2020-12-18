@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	address = flag.StringP("address", "a", "TTAyNmVjNGU4MTBlYzc1ZWVmNDMyYzc4MjI5NGRmZWNhYzUwMzJjN2UyYzlhNzE3", "Axentro address to receive rewards")
+	address = flag.StringP("address", "a", "", "Axentro address to receive rewards")
 	node    = flag.StringP("node", "n", "http://mainnet.axentro.io", "Node URL to mine against")
 	process = flag.IntP("process", "p", 1, "Number of core(s) to use")
 )
@@ -43,6 +43,10 @@ func init() {
 }
 
 func main() {
+	if len(*address) == 0 {
+		flag.Usage()
+		log.Fatal("Wallet address is missing !")
+	}
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
