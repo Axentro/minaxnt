@@ -42,12 +42,6 @@ func init() {
 	flag.Parse()
 }
 
-type Client struct {
-	conn *websocket.Conn
-	send chan types.MessageResponse
-	done chan struct{}
-}
-
 func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
@@ -71,12 +65,12 @@ func main() {
 	minerId := strings.Replace(uuid.New().String(), "-", "", -1)
 	util.Welcome(*node, *address, minerId, *process)
 
-	client := &Client{
-		conn: c,
-		send: make(chan types.MessageResponse),
-		done: make(chan struct{}),
+	client := &miner.Client{
+		Conn: c,
+		Send: make(chan types.MessageResponse),
+		Done: make(chan struct{}),
 	}
-	defer close(client.done)
+	defer close(client.Done)
 
 	go send(client)
 	go recv(client, minerId)
@@ -86,10 +80,10 @@ func main() {
 		Type:    types.TYPE_MINER_HANDSHAKE,
 		Content: fmt.Sprintf("{\"version\":%d,\"address\":\"%s\",\"mid\":\"%s\"}", types.CORE_VERSION, *address, minerId),
 	}
-	client.send <- handshake
+	client.Send <- handshake
 
 	select {
-	case <-client.done:
+	case <-client.Done:
 		return
 	case <-interrupt:
 		log.Warn("MinAXNT interrupt!!!")
@@ -104,16 +98,16 @@ func main() {
 	}
 }
 
-func send(c *Client) {
+func send(c *miner.Client) {
 	for {
 		select {
-		case data, ok := <-c.send:
+		case data, ok := <-c.Send:
 			if !ok {
 				log.Error("sendDataChan error")
-				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			err := c.conn.WriteJSON(&data)
+			err := c.Conn.WriteJSON(&data)
 			if err != nil {
 				log.Error("Can't send data to the blockchain:", err)
 				return
@@ -123,22 +117,21 @@ func send(c *Client) {
 	}
 }
 
-func recv(c *Client, minerId string) {
-	pool := pond.New(64, 128, pond.MinWorkers(*process))
+func recv(c *miner.Client, minerId string) {
+	pool := pond.New(*process, 0, pond.MinWorkers(*process))
 	for {
 		log.Debug("Waiting for blockchain data...")
 
 		result := types.MessageResponse{}
-		err := c.conn.ReadJSON(&result)
+		err := c.Conn.ReadJSON(&result)
 		if err != nil {
 			log.Error("Can't retrieve handshake data: ", err)
-			close(c.done)
+			close(c.Done)
 			return
 		}
 		log.Debugf("Received message from blockchain: %+v", result)
 		switch result.Type {
 		case types.TYPE_MINER_HANDSHAKE_ACCEPTED:
-			pool.StopAndWait()
 			log.Debug("[MINER_HANDSHAKE_ACCEPTED]")
 			resp := types.PeerResponse{}
 			err = json.Unmarshal([]byte(result.Content), &resp)
@@ -147,29 +140,42 @@ func recv(c *Client, minerId string) {
 				return
 			}
 			log.Infof("PREPARING NEXT SLOW BLOCK: %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
+			c.UpdateBlock(resp.Block)
 			for i := 0; i < *process; i++ {
 				pool.Submit(func() {
-					for {
-						blockNonce := miner.Mining(resp.Block, resp.MiningDifficulty)
-						log.Infof("Found new nonce(%d): %s", resp.MiningDifficulty, blockNonce.Nonce)
-						log.Debugf("=> Found block: %+v", blockNonce)
 
-						mnc := types.MinerNonceContent{
-							Nonce: types.NewMinerNonce(),
+					mb := c.Block()
+					mbOldIndex := mb.Index
+					for {
+						log.Debugf("Start mining block index: %d", mb.Index)
+						blockNonce := miner.Mining(mb, resp.MiningDifficulty)
+						mb = c.Block()
+						if mb.Index != mbOldIndex {
+							mbOldIndex = mb.Index
+							continue
 						}
-						mnc.Nonce.Mid = minerId
-						mnc.Nonce.Value = blockNonce.Nonce
-						mnc.Nonce.Timestamp = time.Now().UTC().UnixNano() / int64(time.Millisecond)
-						mnc.Nonce.Address = *address
-						mncJSON, err := json.Marshal(mnc)
-						if err != nil {
-							log.Error("Can't convert miner nonce to JSON: ", err)
-						}
-						resultNonce := types.MessageResponse{
-							Type:    types.TYPE_MINER_FOUND_NONCE,
-							Content: string(mncJSON),
-						}
-						c.send <- resultNonce
+						mbOldIndex = mb.Index
+						go func() {
+							log.Infof("Found new nonce(%d): %s", resp.MiningDifficulty, blockNonce.Nonce)
+							log.Debugf("=> Found block: %+v", blockNonce)
+
+							mnc := types.MinerNonceContent{
+								Nonce: types.NewMinerNonce(),
+							}
+							mnc.Nonce.Mid = minerId
+							mnc.Nonce.Value = blockNonce.Nonce
+							mnc.Nonce.Timestamp = time.Now().UTC().UnixNano() / int64(time.Millisecond)
+							mnc.Nonce.Address = *address
+							mncJSON, err := json.Marshal(mnc)
+							if err != nil {
+								log.Error("Can't convert miner nonce to JSON: ", err)
+							}
+							resultNonce := types.MessageResponse{
+								Type:    types.TYPE_MINER_FOUND_NONCE,
+								Content: string(mncJSON),
+							}
+							c.Send <- resultNonce
+						}()
 					}
 				})
 			}
@@ -181,7 +187,6 @@ func recv(c *Client, minerId string) {
 			}
 			log.Fatal("Handshake rejected: ", reason.Reason)
 		case types.TYPE_MINER_BLOCK_UPDATE:
-			pool.StopAndWait()
 			log.Debug("[MINER_BLOCK_UPDATE]")
 			resp := types.PeerResponse{}
 			err = json.Unmarshal([]byte(result.Content), &resp)
@@ -190,32 +195,7 @@ func recv(c *Client, minerId string) {
 				return
 			}
 			log.Infof("PREPARING NEXT SLOW BLOCK: %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
-			for i := 0; i < *process; i++ {
-				pool.Submit(func() {
-					for {
-						blockNonce := miner.Mining(resp.Block, resp.MiningDifficulty)
-						log.Infof("Found new nonce(%d): %s", resp.MiningDifficulty, blockNonce.Nonce)
-						log.Debugf("=> Found block: %+v", blockNonce)
-
-						mnc := types.MinerNonceContent{
-							Nonce: types.NewMinerNonce(),
-						}
-						mnc.Nonce.Mid = minerId
-						mnc.Nonce.Value = blockNonce.Nonce
-						mnc.Nonce.Timestamp = time.Now().UTC().UnixNano() / int64(time.Millisecond)
-						mnc.Nonce.Address = *address
-						mncJSON, err := json.Marshal(mnc)
-						if err != nil {
-							log.Error("Can't convert miner nonce to JSON: ", err)
-						}
-						resultNonce := types.MessageResponse{
-							Type:    types.TYPE_MINER_FOUND_NONCE,
-							Content: string(mncJSON),
-						}
-						c.send <- resultNonce
-					}
-				})
-			}
+			c.UpdateBlock(resp.Block)
 		}
 	}
 }
