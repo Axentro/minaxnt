@@ -130,7 +130,6 @@ func recv(c *miner.Client, minerId string) {
 		err := c.Conn.ReadJSON(&result)
 		if err != nil {
 			log.Error("Can't retrieve handshake data: ", err)
-			close(c.Done)
 			return
 		}
 		log.Debugf("Received message from blockchain: %+v", result)
