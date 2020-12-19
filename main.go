@@ -29,6 +29,7 @@ var (
 	address = flag.StringP("address", "a", "", "Axentro address to receive rewards")
 	node    = flag.StringP("node", "n", "http://mainnet.axentro.io", "Node URL to mine against")
 	process = flag.IntP("process", "p", 1, "Number of core(s) to use")
+	Version = "v0.0.0"
 )
 
 func init() {
@@ -67,7 +68,7 @@ func main() {
 
 	// Miner UUID
 	minerId := strings.Replace(uuid.New().String(), "-", "", -1)
-	util.Welcome(*node, *address, minerId, *process)
+	util.Welcome(*node, *address, minerId, *process, Version)
 
 	client := &miner.Client{
 		Conn: c,
