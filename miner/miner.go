@@ -89,7 +89,7 @@ func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce ui
 			nowTime = time.Now().UTC()
 			timeDiff = nowTime.Sub(latestTime)
 			workRate = math.Floor(float64(nonceCounterDiff) / timeDiff.Seconds())
-			log.Infof("%d works, %.1f [Work/s]", nonceCounterDiff, workRate)
+			log.Infof("%d works at %.1f [Work/s]", nonceCounterDiff, workRate)
 
 			nonce = rand.Uint64()
 
