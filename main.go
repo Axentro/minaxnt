@@ -71,9 +71,13 @@ func main() {
 	util.Welcome(*node, *address, minerId, *process, Version)
 
 	client := &miner.Client{
-		Conn: c,
-		Send: make(chan types.MessageResponse),
-		Done: make(chan struct{}),
+		Conn:       c,
+		Send:       make(chan types.MessageResponse),
+		Done:       make(chan struct{}),
+		MinerId:    minerId,
+		Address:    *address,
+		Process:    *process,
+		StopMining: make(chan int, *process),
 	}
 	defer close(client.Done)
 
@@ -136,6 +140,7 @@ func recv(c *miner.Client, minerId string) {
 		switch result.Type {
 		case types.TYPE_MINER_HANDSHAKE_ACCEPTED:
 			log.Debug("[MINER_HANDSHAKE_ACCEPTED]")
+
 			resp := types.PeerResponse{}
 			err = json.Unmarshal([]byte(result.Content), &resp)
 			if err != nil {
@@ -143,39 +148,10 @@ func recv(c *miner.Client, minerId string) {
 				return
 			}
 			log.Infof("PREPARING NEXT SLOW BLOCK: %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
-			c.UpdateBlock(resp.Block)
-			for i := 0; i < *process; i++ {
-				pool.Submit(func() {
-					var mb types.MinerBlock
-					for {
-						mb = c.Block()
-						log.Debugf("Start mining block index: %d", mb.Index)
-						blockNonce := miner.Mining(mb, resp.MiningDifficulty)
-						if c.Block().Index != mb.Index {
-							continue
-						}
-						go func() {
-							log.Infof("Found new nonce(%d): %s", resp.MiningDifficulty, blockNonce.Nonce)
-							log.Debugf("=> Found block: %+v", blockNonce)
 
-							mnc := types.MinerNonceContent{
-								Nonce: types.NewMinerNonce(),
-							}
-							mnc.Nonce.Mid = minerId
-							mnc.Nonce.Value = blockNonce.Nonce
-							mnc.Nonce.Timestamp = time.Now().UTC().UnixNano() / int64(time.Millisecond)
-							mnc.Nonce.Address = *address
-							mncJSON, err := json.Marshal(mnc)
-							if err != nil {
-								log.Error("Can't convert miner nonce to JSON: ", err)
-							}
-							resultNonce := types.MessageResponse{
-								Type:    types.TYPE_MINER_FOUND_NONCE,
-								Content: string(mncJSON),
-							}
-							c.Send <- resultNonce
-						}()
-					}
+			for i := 0; i < c.Process; i++ {
+				pool.Submit(func() {
+					c.Mine(resp)
 				})
 			}
 		case types.TYPE_MINER_HANDSHAKE_REJECTED:
@@ -187,6 +163,7 @@ func recv(c *miner.Client, minerId string) {
 			log.Fatal("Handshake rejected: ", reason.Reason)
 		case types.TYPE_MINER_BLOCK_UPDATE:
 			log.Debug("[MINER_BLOCK_UPDATE]")
+
 			resp := types.PeerResponse{}
 			err = json.Unmarshal([]byte(result.Content), &resp)
 			if err != nil {
@@ -194,7 +171,18 @@ func recv(c *miner.Client, minerId string) {
 				return
 			}
 			log.Infof("PREPARING NEXT SLOW BLOCK: %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
-			c.UpdateBlock(resp.Block)
+
+			for i := 0; i < c.Process; i++ {
+				c.StopMining <- 1
+			}
+			pool.StopAndWait()
+			pool = pond.New(*process, 0, pond.MinWorkers(*process))
+
+			for i := 0; i < c.Process; i++ {
+				pool.Submit(func() {
+					c.Mine(resp)
+				})
+			}
 		}
 	}
 }
