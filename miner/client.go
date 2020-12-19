@@ -70,14 +70,17 @@ func (c *Client) send() {
 		select {
 		case data, ok := <-c.Send:
 			if !ok {
-				log.Error("sendDataChan error")
 				c.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-				return
+				log.Fatal("Send channell is closed")
 			}
 			err := c.Conn.WriteJSON(&data)
 			if err != nil {
-				log.Error("Can't send data to the blockchain:", err)
-				return
+				if websocket.IsCloseError(err, websocket.CloseAbnormalClosure) {
+					log.Fatal("Node connection is closed:", err)
+				} else {
+					log.Error("Can't send data to the node: ", err)
+					return
+				}
 			}
 		}
 	}
@@ -86,13 +89,17 @@ func (c *Client) send() {
 func (c *Client) recv() {
 	pool := pond.New(c.Process, 0, pond.MinWorkers(c.Process))
 	for {
-		log.Debug("Waiting for blockchain data...")
+		log.Debug("Waiting for node data...")
 
 		result := types.MessageResponse{}
 		err := c.Conn.ReadJSON(&result)
 		if err != nil {
-			log.Error("Can't retrieve handshake data: ", err)
-			return
+			if websocket.IsCloseError(err, websocket.CloseAbnormalClosure) {
+				log.Fatal("Node connection is closed:", err)
+			} else {
+				log.Error("Can't retrieve node data: ", err)
+				return
+			}
 		}
 		log.Debugf("Received message from blockchain: %+v", result)
 		switch result.Type {
