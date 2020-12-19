@@ -109,7 +109,7 @@ func send(c *miner.Client) {
 		case data, ok := <-c.Send:
 			if !ok {
 				log.Error("sendDataChan error")
-				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				c.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 				return
 			}
 			err := c.Conn.WriteJSON(&data)
