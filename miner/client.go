@@ -105,7 +105,7 @@ func (c *Client) recv() {
 				log.Error("Can't parse mining block data: ", err)
 				return
 			}
-			log.Infof("PREPARING NEXT SLOW BLOCK: %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
+			log.Infof("[START] PREPARING NEXT SLOW BLOCK: %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
 
 			for i := 0; i < c.Process; i++ {
 				pool.Submit(func() {
@@ -121,6 +121,9 @@ func (c *Client) recv() {
 			log.Fatal("Handshake rejected: ", reason.Reason)
 		case types.TYPE_MINER_BLOCK_UPDATE:
 			log.Debug("[MINER_BLOCK_UPDATE]")
+			for i := 0; i < c.Process; i++ {
+				c.StopMining <- 1
+			}
 
 			resp := types.PeerResponse{}
 			err = json.Unmarshal([]byte(result.Content), &resp)
@@ -128,14 +131,9 @@ func (c *Client) recv() {
 				log.Error("Can't parse mining block data: ", err)
 				return
 			}
-			log.Infof("PREPARING NEXT SLOW BLOCK: %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
+			log.Infof("[BLOCK-UPDATE] PREPARING NEXT SLOW BLOCK: %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
 
-			for i := 0; i < c.Process; i++ {
-				c.StopMining <- 1
-			}
 			pool.StopAndWait()
-			pool = pond.New(c.Process, 0, pond.MinWorkers(c.Process))
-
 			for i := 0; i < c.Process; i++ {
 				pool.Submit(func() {
 					c.FoundNonce(resp)
