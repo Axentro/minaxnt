@@ -42,7 +42,7 @@ func validate(blockHash string, blockNonce uint64, difficulty int32) int32 {
 	return int32(len(splitedStr))
 }
 
-func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce uint64, stop bool) {
+func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce uint64, difficulty int32, stop bool) {
 	var latestNonceCounter uint64 = 0
 	var nonceCounter uint64 = 0
 	var latestTime time.Time = time.Now().UTC()
@@ -60,7 +60,7 @@ func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce ui
 	for {
 		select {
 		case <-c.StopMining:
-			return 0, true
+			return 0, 0, true
 		default:
 		}
 		if nonce == math.MaxInt32 {
@@ -81,7 +81,7 @@ func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce ui
 
 		computedDifficulty = validate(latestHash, nonce, miningDifficulty)
 		if computedDifficulty >= miningDifficulty {
-			return nonce, false
+			return nonce, computedDifficulty, false
 		}
 
 		nonceCounterDiff = nonceCounter - latestNonceCounter

@@ -37,12 +37,12 @@ func (c *Client) Start() {
 func (c *Client) FoundNonce(resp types.PeerResponse) {
 	for {
 		log.Debugf("Start mining block index: %d", resp.Block.Index)
-		blockNonce, stop := Mining(resp.Block, resp.MiningDifficulty, c)
+		blockNonce, computedDifficulty, stop := Mining(resp.Block, resp.MiningDifficulty, c)
 		if stop {
 			return
 		}
 		go func() {
-			log.Infof("Found new nonce(%d): %d", resp.MiningDifficulty, blockNonce)
+			log.Infof("Found new nonce(diff. %d, required %d): %d", computedDifficulty, resp.MiningDifficulty, blockNonce)
 			log.Debugf("=> Found block: %d", resp.Block.Index)
 
 			mnc := types.MinerNonceContent{
