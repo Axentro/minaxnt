@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"math/rand"
 	"minaxnt/miner"
 	"minaxnt/types"
@@ -18,8 +16,6 @@ import (
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
-
-	"github.com/alitto/pond"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -44,7 +40,7 @@ func init() {
 }
 
 func main() {
-	if len(*address) == 0 {
+	if *address == "" {
 		flag.Usage()
 		log.Fatal("Wallet address is missing !")
 	}
@@ -66,30 +62,19 @@ func main() {
 	}
 	defer c.Close()
 
-	// Miner UUID
-	minerId := strings.Replace(uuid.New().String(), "-", "", -1)
-	util.Welcome(*node, *address, minerId, *process, Version)
-
 	client := &miner.Client{
 		Conn:       c,
 		Send:       make(chan types.MessageResponse),
 		Done:       make(chan struct{}),
-		MinerId:    minerId,
+		MinerId:    strings.Replace(uuid.New().String(), "-", "", -1),
 		Address:    *address,
 		Process:    *process,
 		StopMining: make(chan int, *process),
 	}
 	defer close(client.Done)
 
-	go send(client)
-	go recv(client, minerId)
-
-	// Handshake
-	handshake := types.MessageResponse{
-		Type:    types.TYPE_MINER_HANDSHAKE,
-		Content: fmt.Sprintf("{\"version\":%d,\"address\":\"%s\",\"mid\":\"%s\"}", types.CORE_VERSION, *address, minerId),
-	}
-	client.Send <- handshake
+	util.Welcome(*node, *address, client.MinerId, *process, Version)
+	client.Start()
 
 	select {
 	case <-client.Done:
@@ -98,91 +83,11 @@ func main() {
 		log.Warn("MinAXNT interrupt!!!")
 		err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 		if err != nil {
-			log.Error("write close:", err)
+			log.Error("Error when sending close message to the blockchain:", err)
 		}
 		select {
 		case <-time.After(time.Second):
 		}
 		return
-	}
-}
-
-func send(c *miner.Client) {
-	for {
-		select {
-		case data, ok := <-c.Send:
-			if !ok {
-				log.Error("sendDataChan error")
-				c.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-				return
-			}
-			err := c.Conn.WriteJSON(&data)
-			if err != nil {
-				log.Error("Can't send data to the blockchain:", err)
-				return
-			}
-		}
-	}
-}
-
-func recv(c *miner.Client, minerId string) {
-	pool := pond.New(*process, 0, pond.MinWorkers(*process))
-	for {
-		log.Debug("Waiting for blockchain data...")
-
-		result := types.MessageResponse{}
-		err := c.Conn.ReadJSON(&result)
-		if err != nil {
-			log.Error("Can't retrieve handshake data: ", err)
-			return
-		}
-		log.Debugf("Received message from blockchain: %+v", result)
-		switch result.Type {
-		case types.TYPE_MINER_HANDSHAKE_ACCEPTED:
-			log.Debug("[MINER_HANDSHAKE_ACCEPTED]")
-
-			resp := types.PeerResponse{}
-			err = json.Unmarshal([]byte(result.Content), &resp)
-			if err != nil {
-				log.Error("Can't parse mining block data: ", err)
-				return
-			}
-			log.Infof("PREPARING NEXT SLOW BLOCK: %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
-
-			for i := 0; i < c.Process; i++ {
-				pool.Submit(func() {
-					c.Mine(resp)
-				})
-			}
-		case types.TYPE_MINER_HANDSHAKE_REJECTED:
-			reason := types.PeerRejectedResponse{}
-			err = json.Unmarshal([]byte(result.Content), &reason)
-			if err != nil {
-				log.Error("Can't convert rejected message")
-			}
-			log.Fatal("Handshake rejected: ", reason.Reason)
-		case types.TYPE_MINER_BLOCK_UPDATE:
-			log.Debug("[MINER_BLOCK_UPDATE]")
-
-			resp := types.PeerResponse{}
-			err = json.Unmarshal([]byte(result.Content), &resp)
-			if err != nil {
-				log.Error("Can't parse mining block data: ", err)
-				return
-			}
-			log.Infof("PREPARING NEXT SLOW BLOCK: %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
-
-			for i := 0; i < c.Process; i++ {
-				c.StopMining <- 1
-			}
-			pool.StopAndWait()
-			pool = pond.New(*process, 0, pond.MinWorkers(*process))
-
-			for i := 0; i < c.Process; i++ {
-				pool.Submit(func() {
-					c.Mine(resp)
-				})
-			}
-		}
 	}
 }

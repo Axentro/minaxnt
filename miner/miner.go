@@ -22,8 +22,8 @@ var argonParams = &types.Argon2Params{
 	KeyLength:   512,
 }
 
-func validate(blockHash string, blockNonce int, difficulty int32) int32 {
-	nonce := strconv.FormatInt(int64(blockNonce), 16)
+func validate(blockHash string, blockNonce uint64, difficulty int32) int32 {
+	nonce := strconv.FormatUint(blockNonce, 16)
 	if len([]rune(nonce))%2 != 0 {
 		nonce = "0" + nonce
 	}
@@ -42,7 +42,7 @@ func validate(blockHash string, blockNonce int, difficulty int32) int32 {
 	return int32(len(splitedStr))
 }
 
-func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce int, stop bool) {
+func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce uint64, stop bool) {
 	var latestNonceCounter uint64 = 0
 	var nonceCounter uint64 = 0
 	var latestTime time.Time = time.Now().UTC()
@@ -55,7 +55,7 @@ func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce in
 	var workRate float64
 	var computedDifficulty int32 = 0
 
-	nonce = rand.Int()
+	nonce = rand.Uint64()
 	block.Nonce = fmt.Sprintf("%d", nonce)
 	for {
 		select {
@@ -91,7 +91,7 @@ func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce in
 			workRate = math.Floor(float64(nonceCounterDiff) / timeDiff.Seconds())
 			log.Infof("%d works, %.1f [Work/s]", nonceCounterDiff, workRate)
 
-			nonce = rand.Int()
+			nonce = rand.Uint64()
 
 			latestNonceCounter = nonceCounter
 			latestTime = nowTime
