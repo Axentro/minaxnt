@@ -10,6 +10,8 @@ MinAXNT is well tested on GNU/Linux (x86_64), MacOs (x86_64) and Windows (x86_64
 
 Installing MinAXNT is really simple:
 
+First: _You need an Axentro wallet address to use the miner, please visite the [website](https://axentro.io/) or the [Youtube channel](https://www.youtube.com/channel/UC8itve8eHunJkfuyJYwMy6g)_
+
 * Download your platform archive: <https://github.com/fenicks/minaxnt/releases/>
 * Uncompress the archive in a directory of your choice
 * Open a terminal and go the MinAXNT directory
