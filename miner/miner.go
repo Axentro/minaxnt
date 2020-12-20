@@ -9,9 +9,7 @@ import (
 	"minaxnt/types"
 	"strconv"
 	"strings"
-	"time"
 
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -43,16 +41,8 @@ func validate(blockHash string, blockNonce uint64, difficulty int32) int32 {
 }
 
 func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce uint64, difficulty int32, stop bool) {
-	var latestNonceCounter uint64 = 0
-	var nonceCounter uint64 = 0
-	var latestTime time.Time = time.Now().UTC()
-	var nowTime time.Time = latestTime
-
 	var blockJSON []byte
 	var latestHash string
-	var nonceCounterDiff uint64
-	var timeDiff time.Duration
-	var workRate float64
 	var computedDifficulty int32 = 0
 
 	nonce = rand.Uint64()
@@ -69,32 +59,13 @@ func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce ui
 		nonce++
 		block.Nonce = fmt.Sprintf("%d", nonce)
 
-		if nonceCounter == math.MaxUint64 {
-			latestNonceCounter = 0
-			nonceCounter = 0
-			nonceCounterDiff = 0
-		}
-		nonceCounter++
-
 		blockJSON, _ = json.Marshal(block)
 		latestHash = fmt.Sprintf("%x", sha256.Sum256(blockJSON))
 
 		computedDifficulty = validate(latestHash, nonce, miningDifficulty)
+		go c.Stat.Incr()
 		if computedDifficulty >= miningDifficulty {
 			return nonce, computedDifficulty, false
-		}
-
-		nonceCounterDiff = nonceCounter - latestNonceCounter
-		if nonceCounterDiff%100 == 0 {
-			nowTime = time.Now().UTC()
-			timeDiff = nowTime.Sub(latestTime)
-			workRate = math.Floor(float64(nonceCounterDiff) / timeDiff.Seconds())
-			log.Infof("%d works at %.1f [Work/s]", nonceCounterDiff, workRate)
-
-			nonce = rand.Uint64()
-
-			latestNonceCounter = nonceCounter
-			latestTime = nowTime
 		}
 	}
 }
