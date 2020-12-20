@@ -35,6 +35,14 @@ Have fun !
 
 [WIP]
 
+## Benchmark (Argon2id)
+
+| **CPU Model** | **Work/s** |
+|---------  |--------|
+| **Intel(R) Core(TM) i7-4700MQ CPU @ 2.40GHz Rev. 3 (32-bit, 64-bit)** | 36-44 Work/s |
+|**AMD Ryzen 5 3550H with Radeon Vega Mobile Gfx 2.10 GHz (64-bit)** | 56-64 Work/s |
+| **Rockpro64 ARM Cortex-A53 (aarch64)** | 4-6 Work/s |
+
 ## License
 
 This project is under the MIT License. See the [LICENSE](https://github.com/fenicks/minaxnt/blob/main/LICENSE) file for the full license text.
