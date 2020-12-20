@@ -9,13 +9,6 @@ const (
 	TYPE_MINER_BLOCK_UPDATE       int = 0x0005
 )
 
-type Argon2Params struct {
-	Memory      uint32
-	Iterations  uint32
-	Parallelism uint8
-	KeyLength   uint32
-}
-
 type Sender struct {
 	Address   string `json:"address"`
 	PublicKey string `json:"public_key"`

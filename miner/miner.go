@@ -15,12 +15,12 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-var argonParams = &types.Argon2Params{
-	Memory:      64 * 1024,
-	Iterations:  1,
-	Parallelism: 1,
-	KeyLength:   512,
-}
+const (
+	Argon2Iterations  = 1
+	Argon2Memory      = 64 * 1024
+	Argon2Parallelism = 1
+	Argon2KeyLength   = 512
+)
 
 func validate(blockHash string, blockNonce uint64, difficulty int32) int32 {
 	nonce := strconv.FormatUint(blockNonce, 16)
@@ -28,7 +28,7 @@ func validate(blockHash string, blockNonce uint64, difficulty int32) int32 {
 		nonce = "0" + nonce
 	}
 
-	hash := argon2.IDKey([]byte(blockHash), []byte(nonce), argonParams.Iterations, argonParams.Memory, argonParams.Parallelism, argonParams.KeyLength)
+	hash := argon2.IDKey([]byte(blockHash), []byte(nonce), Argon2Iterations, Argon2Memory, Argon2Parallelism, Argon2KeyLength)
 
 	var leadingBits []string
 	for _, v := range hash {
