@@ -41,8 +41,8 @@ Have fun !
 
 | **Device** | **Type** | **CPU Model** | **Operating System** | **MinAXNT process param** | **Work/s** |
 |------------|----------|---------------|----------------------|---------------------------|------------|
-| Lenovo: Y510P | Laptop | Intel(R) Core(TM) i7-4700MQ CPU @ 2.40GHz Rev. 3 (32-bit, 64-bit) | Ununtu 18.04 | 8 | **48 Work/s** (45 Work/s when using only the 4 physical CPU: `taskset -c 0,2,4,6 ./minaxnt -a xxx -p8`) |
 | MinisForum: DMAF5 | Mini-PC | AMD Ryzen 5 3550H with Radeon Vega Mobile Gfx 2.10 GHz (64-bit) | Windows 10 Family | 8 | **68 Work/s** |
+| Lenovo: Y510P | Laptop | Intel(R) Core(TM) i7-4700MQ CPU @ 2.40GHz Rev. 3 (32-bit, 64-bit) | Ununtu 18.04 | 8 | **48 Work/s** (45 Work/s when using only the 4 physical CPU: `taskset -c 0,2,4,6 ./minaxnt -a xxx -p8`) |
 | PINE64: ROCKPro64 2Gio RAM | SBC (ARM) | RK3399 SOC with Mali T860 MP4 GPU (aarch64) | Ubuntu 18.04 | 6 | **10 Work/s** |
 
 ## License
