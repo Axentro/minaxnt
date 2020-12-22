@@ -34,7 +34,7 @@ func (s *Stats) Start() {
 		case <-t.C:
 			now = time.Now().UTC()
 			timeDiff = now.Sub(s.lastTime)
-			currentCounter = s.counter
+			currentCounter = atomic.LoadUint64(&s.counter)
 			counterDiff = currentCounter - s.lastCounter
 			rate = float64(counterDiff) / timeDiff.Seconds()
 
