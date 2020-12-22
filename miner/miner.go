@@ -63,7 +63,7 @@ func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce ui
 		latestHash = fmt.Sprintf("%x", sha256.Sum256(blockJSON))
 
 		computedDifficulty = validate(latestHash, nonce, miningDifficulty)
-		go c.Stat.Incr()
+		go c.Stats.Incr()
 		if computedDifficulty >= miningDifficulty {
 			return nonce, computedDifficulty, false
 		}

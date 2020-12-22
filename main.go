@@ -70,7 +70,7 @@ func main() {
 		Address:    *address,
 		Process:    *process,
 		StopMining: make(chan int, *process),
-		Stat:       miner.Stat{},
+		Stats:      miner.Stats{},
 	}
 	defer close(client.Done)
 

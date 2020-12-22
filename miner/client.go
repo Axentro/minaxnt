@@ -20,13 +20,13 @@ type Client struct {
 	Address    string
 	Process    int
 	StopMining chan int
-	Stat       Stat
+	Stats      Stats
 }
 
 func (c *Client) Start() {
 	go c.send()
 	go c.recv()
-	go c.Stat.Start()
+	go c.Stats.Start()
 
 	// Handshake
 	handshake := types.MessageResponse{

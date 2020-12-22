@@ -12,13 +12,13 @@ const (
 	TICK_SECONDS time.Duration = 10
 )
 
-type Stat struct {
+type Stats struct {
 	counter     uint64
 	lastCounter uint64
 	lastTime    time.Time
 }
 
-func (s *Stat) Start() {
+func (s *Stats) Start() {
 	s.lastTime = time.Now().UTC()
 	s.lastCounter = 0
 	s.counter = 0
@@ -46,11 +46,11 @@ func (s *Stat) Start() {
 	}
 }
 
-func (s *Stat) Incr() {
+func (s *Stats) Incr() {
 	atomic.AddUint64(&s.counter, 1)
 }
 
-func (s *Stat) humanizeRate(rate float64) string {
+func (s *Stats) humanizeRate(rate float64) string {
 	var hr string
 	if rate/1000.0 <= 1.0 {
 		hr = fmt.Sprintf("%.1f Work/s", rate)
