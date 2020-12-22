@@ -33,6 +33,7 @@ func init() {
 	rand.Seed(time.Now().Unix())
 	log.SetFormatter(&log.TextFormatter{
 		FullTimestamp: true,
+		ForceColors:   true,
 	})
 	logrus.SetOutput(colorable.NewColorableStdout())
 	// log.SetLevel(log.DebugLevel)
