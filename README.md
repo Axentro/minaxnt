@@ -4,7 +4,7 @@ MinAXNT is a Go implementation of the Axentro mining protocol.
 
 You can find more information about Axentro on the website: <https://axentro.io/>.
 
-MinAXNT is well tested on GNU/Linux (x86_64), MacOs (x86_64) and Windows (x86_64).
+MinAXNT is well tested on GNU/Linux (x86_64|386, ARM aarch64|armv6), MacOs (x86_64), Windows (x86_64, 386).
 
 ## Install
 
