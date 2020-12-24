@@ -41,8 +41,11 @@ Have fun !
 
 | **Device** | **Type** | **CPU Model** | **Operating System** | **MinAXNT process param** | **Work/s** |
 |------------|----------|---------------|----------------------|---------------------------|------------|
-| MinisForum: DMAF5 | Mini-PC | AMD Ryzen 5 3550H with Radeon Vega Mobile Gfx 2.10 GHz (64-bit) | Windows 10 Family (x86_64) | 8 | **68 Work/s** |
-| Lenovo: Y510P | Laptop | Intel(R) Core(TM) i7-4700MQ CPU @ 2.40GHz Rev. 3 (32-bit, 64-bit) | Ununtu 18.04 (x86_64) | 8 | **48 Work/s** (45 Work/s when using only the 4 physical CPU: `taskset -c 0,2,4,6 ./minaxnt -a xxx -p8`) |
+| **iMac Pro** | **Desktop** | Intel Xeon W-?? @3.00 GHz 10-core 64-bit | MacOs Catalina | 40 | **160 Work/s** |
+| **MacBook Pro** | **Laptop** | Intel Core i9-?? U@2.3 GHz 8-Core 64-bit | MacOS Big sur | 30 | **108 Work/s** |
+| MinisForum: DMAF5 | Mini-PC | AMD Ryzen 5 3550H with Radeon Vega Mobile Gfx @2.10 GHz 4-core HT (8 vcore) 64-bit | Windows 10 Family (x86_64) | 8 | **68 Work/s** |
+| Lenovo: Y510P | Laptop | Intel(R) Core(TM) i7-4700MQ @2.40GHz Rev.3 4-core HT (8 vcore) 32-bit-64-bit | Ununtu 18.04 (x86_64) | 8 | **48 Work/s** (45 Work/s when using only the 4 physical CPU: `taskset -c 0,2,4,6 ./minaxnt -a xxx -p8`) |
+| **IMB/PC** | **Desktop** | Intel i7-7820 HQ @2.90 GHz  4-core HT (8 vcore) 64-bit | Windows 10 Pro | ?? | **36 Work/s** |
 | PINE64: ROCKPro64 2Gio RAM | SBC (ARM) | RK3399 Hexa-Core (2x ARM Cortex A72, 2.0GHz + 4x ARM Cortex A53, 1.5GHz)  | Ubuntu 18.04 (aarch64) | 6 | **10 Work/s** |
 | Raspberry Pi 4, ?? Gio RAM | SBC (ARM) | 4x ARM Cortex-A72, 1.5GHz | ?? (aarch64) | ?? | **xx Work/s** |
 | Raspberry Pi 3 Model B Rev 1.2, 1 Gio RAM | SBC (ARM) | 4x ARM Cortex-A53, 1.2GHz | Alpine Linux 5.4.84-0-rpi (aarch64) | 4 | **2.4 Work/s** |
