@@ -38,10 +38,10 @@ func init() {
 		ForceColors:   true,
 		DisableColors: false,
 	})
+	flag.Parse()
 	if *debug {
 		log.SetLevel(log.DebugLevel)
 	}
-	flag.Parse()
 }
 
 func main() {
