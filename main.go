@@ -25,6 +25,7 @@ var (
 	address = flag.StringP("address", "a", "", "Axentro address to receive rewards")
 	node    = flag.StringP("node", "n", "http://mainnet.axentro.io", "Node URL to mine against")
 	process = flag.IntP("process", "p", 1, "Number of core(s) to use")
+	debug   = flag.Bool("debug", false, "Set log level to debug")
 	Version = "v0.0.0"
 )
 
@@ -36,7 +37,9 @@ func init() {
 		ForceColors:   true,
 	})
 	logrus.SetOutput(colorable.NewColorableStdout())
-	// log.SetLevel(log.DebugLevel)
+	if *debug {
+		log.SetLevel(log.DebugLevel)
+	}
 	flag.Parse()
 }
 
