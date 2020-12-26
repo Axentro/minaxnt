@@ -32,11 +32,12 @@ var (
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	rand.Seed(time.Now().Unix())
+	logrus.SetOutput(colorable.NewColorableStdout())
 	log.SetFormatter(&log.TextFormatter{
 		FullTimestamp: true,
 		ForceColors:   true,
+		DisableColors: false,
 	})
-	logrus.SetOutput(colorable.NewColorableStdout())
 	if *debug {
 		log.SetLevel(log.DebugLevel)
 	}
