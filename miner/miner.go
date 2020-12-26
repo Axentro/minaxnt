@@ -9,6 +9,7 @@ import (
 	"minaxnt/types"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -22,7 +23,7 @@ const (
 
 func validate(blockHash string, blockNonce uint64, difficulty int32) int32 {
 	nonce := strconv.FormatUint(blockNonce, 16)
-	if len([]rune(nonce))%2 != 0 {
+	if utf8.RuneCountInString(nonce)%2 != 0 {
 		nonce = "0" + nonce
 	}
 

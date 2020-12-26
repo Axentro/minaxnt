@@ -19,7 +19,7 @@ type Stats struct {
 }
 
 func (s *Stats) Start() {
-	s.lastTime = time.Now().UTC()
+	s.lastTime = time.Now()
 	s.lastCounter = 0
 	s.counter = 0
 
@@ -32,9 +32,9 @@ func (s *Stats) Start() {
 	for {
 		select {
 		case <-t.C:
-			now = time.Now().UTC()
+			now = time.Now()
 			timeDiff = now.Sub(s.lastTime)
-			currentCounter = atomic.LoadUint64(&s.counter)
+			currentCounter = s.Counter()
 			counterDiff = currentCounter - s.lastCounter
 			rate = float64(counterDiff) / timeDiff.Seconds()
 
@@ -48,6 +48,10 @@ func (s *Stats) Start() {
 
 func (s *Stats) Incr() {
 	atomic.AddUint64(&s.counter, 1)
+}
+
+func (s *Stats) Counter() uint64 {
+	return atomic.LoadUint64(&s.counter)
 }
 
 func (s *Stats) humanizeRate(rate float64) string {

@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/mattn/go-colorable"
@@ -34,23 +35,24 @@ func init() {
 	rand.Seed(time.Now().Unix())
 	logrus.SetOutput(colorable.NewColorableStdout())
 	log.SetFormatter(&log.TextFormatter{
-		FullTimestamp: true,
-		ForceColors:   true,
-		DisableColors: false,
+		DisableColors:          false,
+		DisableLevelTruncation: true,
+		ForceColors:            true,
+		FullTimestamp:          true,
 	})
 	flag.Parse()
-	if *debug {
-		log.SetLevel(log.DebugLevel)
-	}
 }
 
 func main() {
+	if *debug {
+		log.SetLevel(log.DebugLevel)
+	}
 	if *address == "" {
 		flag.Usage()
 		log.Fatal("Wallet address is missing !")
 	}
 	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
 	nodeURL, err := url.Parse(*node)
 	if err != nil {
