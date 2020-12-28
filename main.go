@@ -44,10 +44,9 @@ func main() {
 	if *debug {
 		log.SetLevel(log.DebugLevel)
 	}
-	// TODO(fenicks): check if address is valid
-	if *address == "" {
+	if !util.IsValidAddress(*address) {
+		log.Fatal("Wallet address is missing or is not valid!")
 		flag.Usage()
-		log.Fatal("Wallet address is missing !")
 	}
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
