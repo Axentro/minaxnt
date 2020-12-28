@@ -20,8 +20,6 @@ type Stats struct {
 
 func (s *Stats) Start() {
 	s.lastTime = time.Now()
-	s.lastCounter = 0
-	s.counter = 0
 
 	var now time.Time
 	var timeDiff time.Duration

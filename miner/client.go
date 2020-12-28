@@ -4,23 +4,61 @@ import (
 	"encoding/json"
 	"fmt"
 	"minaxnt/types"
+	"net/url"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/alitto/pond"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 )
 
 type Client struct {
-	Name       string
+	sync.Mutex
+	ClientName string
+	NodeURL    string
 	Conn       *websocket.Conn
 	Send       chan types.MessageResponse
-	Done       chan struct{}
+	Done       chan bool
 	MinerId    string
 	Address    string
 	Process    int
 	StopMining chan int
 	Stats      Stats
+}
+
+func NewClient(clientName string, nodeURL string, walletAddr string, numProcess int) *Client {
+	return &Client{
+		ClientName: clientName,
+		NodeURL:    nodeURL,
+		Conn:       buildConn(nodeURL),
+		Send:       make(chan types.MessageResponse),
+		Done:       make(chan bool),
+		MinerId:    strings.Replace(uuid.New().String(), "-", "", -1),
+		Address:    walletAddr,
+		Process:    numProcess,
+		StopMining: make(chan int, numProcess),
+		Stats:      Stats{},
+	}
+}
+
+func buildConn(nodeURL string) *websocket.Conn {
+	nu, err := url.Parse(nodeURL)
+	if err != nil {
+		log.Fatal("Can't parse the node URL: ", err)
+	}
+	scheme := "ws"
+	if nu.Scheme == "https" {
+		scheme = "wss"
+	}
+	u := url.URL{Scheme: scheme, Host: nu.Host, Path: "/peer"}
+	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	if err != nil {
+		log.Fatal("dial:", err)
+	}
+	return conn
 }
 
 func (c *Client) Start() {
@@ -68,6 +106,31 @@ func (c *Client) FoundNonce(resp types.PeerResponse, Id int) {
 	}
 }
 
+func (c *Client) resetConn() {
+	c.Lock()
+	defer c.Unlock()
+	_ = c.Conn.Close()
+	c.Conn = buildConn(c.NodeURL)
+}
+
+func (c *Client) handleError(err error) {
+	switch {
+	case websocket.IsCloseError(err, websocket.CloseNormalClosure):
+		log.Warnf("Normal node closure: %v", err)
+		c.Done <- true
+	case websocket.IsCloseError(err, websocket.CloseAbnormalClosure):
+		log.Fatalf("Node connection closed abnormally: %v", err)
+	case websocket.IsCloseError(err, websocket.CloseTryAgainLater):
+		log.Warn("Node is online but not ready")
+		log.Debug("=> Waiting for node for 60 seconds")
+		time.Sleep(60 * time.Second)
+		c.resetConn()
+		log.Debug("=> Node connection reseted")
+	default:
+		log.Fatalf("Connection is not available: %v", err)
+	}
+}
+
 func (c *Client) send() {
 	for {
 		select {
@@ -78,12 +141,7 @@ func (c *Client) send() {
 			}
 			err := c.Conn.WriteJSON(&data)
 			if err != nil {
-				if websocket.IsCloseError(err, websocket.CloseAbnormalClosure) {
-					log.Fatal("Node connection is closed:", err)
-				} else {
-					log.Error("Can't send data to the node: ", err)
-					return
-				}
+				c.handleError(err)
 			}
 		}
 	}
@@ -97,12 +155,7 @@ func (c *Client) recv() {
 		result := types.MessageResponse{}
 		err := c.Conn.ReadJSON(&result)
 		if err != nil {
-			if websocket.IsCloseError(err, websocket.CloseAbnormalClosure) {
-				log.Fatal("Node connection is closed:", err)
-			} else {
-				log.Error("Can't retrieve node data: ", err)
-				return
-			}
+			c.handleError(err)
 		}
 		log.Debugf("Received message from blockchain: %+v", result)
 		switch result.Type {

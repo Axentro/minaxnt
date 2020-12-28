@@ -1,33 +1,30 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 	"minaxnt/miner"
-	"minaxnt/types"
 	"minaxnt/util"
-	"net/url"
 	"os"
 	"os/signal"
 	"runtime"
-	"strings"
 	"syscall"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/mattn/go-colorable"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
-
-	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
 )
 
 var (
-	address = flag.StringP("address", "a", "", "Axentro address to receive rewards")
-	node    = flag.StringP("node", "n", "http://mainnet.axentro.io", "Node URL to mine against")
-	process = flag.IntP("process", "p", 1, "Number of core(s) to use")
-	debug   = flag.Bool("debug", false, "Set log level to debug")
-	Version = "v0.0.0"
+	address   = flag.StringP("address", "a", "", "Axentro address to receive rewards")
+	node      = flag.StringP("node", "n", "http://mainnet.axentro.io", "Node URL to mine against")
+	process   = flag.IntP("process", "p", 1, "Number of core(s) to use")
+	debug     = flag.Bool("debug", false, "Set log level to debug")
+	MinerName = "MinAXNT"
+	Version   = "v0.0.0"
 )
 
 func init() {
@@ -47,6 +44,7 @@ func main() {
 	if *debug {
 		log.SetLevel(log.DebugLevel)
 	}
+	// TODO(fenicks): check if address is valid
 	if *address == "" {
 		flag.Usage()
 		log.Fatal("Wallet address is missing !")
@@ -54,47 +52,23 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
-	nodeURL, err := url.Parse(*node)
-	if err != nil {
-		log.Fatal("Can't parse the node URL: ", err)
-	}
-	scheme := "ws"
-	if nodeURL.Scheme == "https" {
-		scheme = "wss"
-	}
-	u := url.URL{Scheme: scheme, Host: nodeURL.Host, Path: "/peer"}
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
-	if err != nil {
-		log.Fatal("dial:", err)
-	}
-	defer c.Close()
-
-	client := &miner.Client{
-		Conn:       c,
-		Send:       make(chan types.MessageResponse),
-		Done:       make(chan struct{}),
-		MinerId:    strings.Replace(uuid.New().String(), "-", "", -1),
-		Address:    *address,
-		Process:    *process,
-		StopMining: make(chan int, *process),
-		Stats:      miner.Stats{},
-	}
-	defer close(client.Done)
-
-	util.Welcome(*node, *address, client.MinerId, *process, Version)
+	client := miner.NewClient(fmt.Sprintf("%s - %s", MinerName, Version), *node, *address, *process)
+	util.Welcome(client)
 	client.Start()
 
 	select {
 	case <-client.Done:
+		_ = client.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+		client.Conn.Close()
 		return
 	case <-interrupt:
-		log.Warn("MinAXNT interrupt!!!")
-		err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+		log.Warnf("%s interrupt!!!", client.ClientName)
+		err := client.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 		if err != nil {
-			log.Error("Error when sending close message to the blockchain:", err)
+			log.Errorf("Error when sending close message to the blockchain: %s", err)
 		}
 		select {
-		case <-time.After(time.Second):
+		case <-time.After(1 * time.Second):
 		}
 		return
 	}
