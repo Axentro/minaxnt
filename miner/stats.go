@@ -18,9 +18,15 @@ type Stats struct {
 	lastTime    time.Time
 }
 
-func (s *Stats) Start() {
-	s.lastTime = time.Now()
+func NewStats() Stats {
+	return Stats{
+		counter:     0,
+		lastCounter: 0,
+		lastTime:    time.Now(),
+	}
+}
 
+func (s *Stats) Start() {
 	var now time.Time
 	var timeDiff time.Duration
 	var currentCounter uint64

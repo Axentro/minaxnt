@@ -40,7 +40,7 @@ func NewClient(clientName string, nodeURL string, walletAddr string, numProcess 
 		Address:    walletAddr,
 		Process:    numProcess,
 		StopMining: make(chan int, numProcess),
-		Stats:      Stats{},
+		Stats:      NewStats(),
 	}
 }
 
