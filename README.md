@@ -46,9 +46,7 @@ Sometime you have to use the same computer to mine $AXNT and do other stuff.
 
 That's interesting to configure MinAXNT to use only a limited cores in order to use your computer in the same time.
 
-In  my case I have an Intel core-i7-4700MQ with 4 cores HT that mean I have 8 logical cores.
-
-To use MinAXNT on only 4 logical cores (the most powerful), you could use this external tool described bellow:
+To use MinAXNT on only 4 logical cores (the most powerful), you could use external tips described bellow:
 
 #### Linux with `taskset`
 
@@ -58,7 +56,7 @@ Most distribution have `taskset` binary.
 
     taskset -c 0,2,4,6 ./minaxnt -a TTBjMjg1NWJmZTIwMTA3MDc3NTZkNjg1MTcxYjE1YmE5ZjU3N2EzODhkYWRiZWIy -n http://localhost:3000 -p4
 
-This way only for 4 cores are used for MinAXNT and the others for programming or Internet, ...
+This way only 4 cores are used for MinAXNT and the others for other stuff like programming, gaming or Internet, ...
 
 #### Windows [WIP]
 
