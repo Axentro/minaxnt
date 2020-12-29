@@ -73,7 +73,7 @@ On Windows the most powerful cores in HT CPU are those who have an _odd_ index (
 | **IMB/PC** | Laptop | Intel i7-7820 HQ @2.90 GHz  4-core HT (8 vcore) 64-bit | Windows 10 Pro | ?? | **36 Work/s** | v0.7.0 |
 | PINE64: ROCKPro64 2Gio RAM | SBC (ARM) | RK3399 Hexa-Core (2x ARM Cortex A72, 2.0GHz + 4x ARM Cortex A53, 1.5GHz)  | Ubuntu 18.04 (aarch64) | 6 | **10 Work/s** | v0.7.0 |
 | Raspberry Pi 4, ?? Gio RAM | SBC (ARM) | 4x ARM Cortex-A72, 1.5GHz | ?? (aarch64) | ?? | **xx Work/s** | - |
-| Raspberry Pi 3 Model B Rev 1.2, 1 Gio RAM | SBC (ARM) | 4x ARM Cortex-A53, 1.2GHz | Alpine Linux 5.4.84-0-rpi (aarch64) | 4 | **2.4 Work/s** | v0.7.0 |
+| Raspberry Pi 3 Model B Rev 1.2, 1 Gio RAM | SBC (ARM) | 4x ARM Cortex-A53, 1.2GHz | Alpine Linux 5.4.84-0-rpi (aarch64) | 4 | **2.6 Work/s** | v0.9.0 |
 
 ## License
 
