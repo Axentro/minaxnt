@@ -21,7 +21,7 @@ const (
 	Argon2KeyLength   = 512
 )
 
-func validate(blockHash string, blockNonce uint64, difficulty int32) int32 {
+func computeDifficulty(blockHash string, blockNonce uint64, difficulty int32) int32 {
 	nonce := strconv.FormatUint(blockNonce, 16)
 	if utf8.RuneCountInString(nonce)%2 != 0 {
 		nonce = "0" + nonce
@@ -43,8 +43,7 @@ func validate(blockHash string, blockNonce uint64, difficulty int32) int32 {
 
 func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce uint64, difficulty int32, stop bool) {
 	var blockJSON []byte
-	var latestHash string
-	var computedDifficulty int32 = 0
+	var cDiff int32
 
 	nonce = rand.Uint64()
 	block.Nonce = fmt.Sprintf("%d", nonce)
@@ -54,19 +53,21 @@ func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce ui
 			return 0, 0, true
 		default:
 		}
-		if nonce == math.MaxInt32 {
+
+		if nonce == math.MaxUint64 {
 			nonce = 0
+		} else if c.Stats.Counter()%250 == 0 {
+			nonce = rand.Uint64()
+		} else {
+			nonce++
 		}
-		nonce++
 		block.Nonce = fmt.Sprintf("%d", nonce)
-
 		blockJSON, _ = json.Marshal(block)
-		latestHash = fmt.Sprintf("%x", sha256.Sum256(blockJSON))
-
-		computedDifficulty = validate(latestHash, nonce, miningDifficulty)
+		cDiff = computeDifficulty(fmt.Sprintf("%x", sha256.Sum256(blockJSON)), nonce, miningDifficulty)
 		go c.Stats.Incr()
-		if computedDifficulty >= miningDifficulty {
-			return nonce, computedDifficulty, false
+
+		if cDiff >= miningDifficulty {
+			return nonce, cDiff, false
 		}
 	}
 }

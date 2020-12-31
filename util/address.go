@@ -10,6 +10,9 @@ import (
 )
 
 func IsValidAddress(addr string) bool {
+	if addr == "" {
+		return false
+	}
 	hexAddr, err := base64.StdEncoding.DecodeString(addr)
 	if err != nil {
 		return false
@@ -23,7 +26,7 @@ func IsValidAddress(addr string) bool {
 	switch {
 	case len(hexAddr) != 48:
 		return false
-	case bytes.Compare(checksum, []byte(doubleSha256)[:6]) != 0:
+	case !bytes.Equal(checksum, []byte(doubleSha256)[:6]):
 		return false
 	}
 	return true

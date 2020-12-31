@@ -11,9 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/mattn/go-colorable"
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
 )
@@ -30,7 +28,7 @@ var (
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	rand.Seed(time.Now().Unix())
-	logrus.SetOutput(colorable.NewColorableStdout())
+	log.SetOutput(colorable.NewColorableStdout())
 	log.SetFormatter(&log.TextFormatter{
 		DisableColors:          false,
 		DisableLevelTruncation: true,
@@ -45,8 +43,8 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 	if !util.IsValidAddress(*address) {
-		log.Fatal("Wallet address is missing or is not valid!")
 		flag.Usage()
+		log.Fatal("Wallet address is missing or is not valid!")
 	}
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
@@ -57,18 +55,9 @@ func main() {
 
 	select {
 	case <-client.Done:
-		_ = client.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-		client.Conn.Close()
 		return
 	case <-interrupt:
 		log.Warnf("%s interrupt!!!", client.ClientName)
-		err := client.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-		if err != nil {
-			log.Errorf("Error when sending close message to the blockchain: %s", err)
-		}
-		select {
-		case <-time.After(1 * time.Second):
-		}
-		return
+		time.Sleep(1 * time.Second)
 	}
 }

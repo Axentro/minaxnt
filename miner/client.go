@@ -20,13 +20,13 @@ type Client struct {
 	ClientName string
 	NodeURL    string
 	Conn       *websocket.Conn
-	Send       chan types.MessageResponse
-	Done       chan bool
+	Send       chan *types.MessageResponse
+	Done       chan struct{}
 	MinerId    string
 	Address    string
 	Process    int
-	StopMining chan int
-	Stats      Stats
+	StopMining chan struct{}
+	Stats      *Stats
 }
 
 func NewClient(clientName string, nodeURL string, walletAddr string, numProcess int) *Client {
@@ -34,12 +34,12 @@ func NewClient(clientName string, nodeURL string, walletAddr string, numProcess 
 		ClientName: clientName,
 		NodeURL:    nodeURL,
 		Conn:       buildConn(nodeURL),
-		Send:       make(chan types.MessageResponse),
-		Done:       make(chan bool),
+		Send:       make(chan *types.MessageResponse),
+		Done:       make(chan struct{}, 1),
 		MinerId:    strings.Replace(uuid.New().String(), "-", "", -1),
 		Address:    walletAddr,
 		Process:    numProcess,
-		StopMining: make(chan int, numProcess),
+		StopMining: make(chan struct{}, numProcess),
 		Stats:      NewStats(),
 	}
 }
@@ -71,20 +71,20 @@ func (c *Client) Start() {
 		Type:    types.TYPE_MINER_HANDSHAKE,
 		Content: fmt.Sprintf("{\"version\":%d,\"address\":\"%s\",\"mid\":\"%s\"}", types.CORE_VERSION, c.Address, c.MinerId),
 	}
-	c.Send <- handshake
+	c.Send <- &handshake
 }
 
 func (c *Client) FoundNonce(resp types.PeerResponse, Id int) {
 	for {
-		log.Debugf("[%d] Start mining block index: %d", Id, resp.Block.Index)
+		log.Debugf("[#%d] Start mining block index: %d", Id, resp.Block.Index)
 		blockNonce, computedDifficulty, stop := Mining(resp.Block, resp.MiningDifficulty, c)
 		if stop {
-			log.Debugf("[%d] Stop mining block index: %d", Id, resp.Block.Index)
+			log.Debugf("[#%d] Stop mining block index: %d", Id, resp.Block.Index)
 			return
 		}
 		go func() {
-			log.Infof("[%d] Found new nonce(diff. %d, required %d): %d", Id, computedDifficulty, resp.MiningDifficulty, blockNonce)
-			log.Debugf("[%d] => Nonce for block: %d", Id, resp.Block.Index)
+			log.Infof("[#%d] Found new nonce(diff. %d, required %d): %d", Id, computedDifficulty, resp.MiningDifficulty, blockNonce)
+			log.Debugf("[#%d] => Nonce for block: %d", Id, resp.Block.Index)
 
 			mnc := types.MinerNonceContent{
 				Nonce: types.NewMinerNonce(),
@@ -95,13 +95,13 @@ func (c *Client) FoundNonce(resp types.PeerResponse, Id int) {
 			mnc.Nonce.Address = c.Address
 			mncJSON, err := json.Marshal(mnc)
 			if err != nil {
-				log.Errorf("[%d] Can't convert miner nonce to JSON: %s", Id, err)
+				log.Errorf("[#%d] Can't convert miner nonce to JSON: %s", Id, err)
 			}
 			resultNonce := types.MessageResponse{
 				Type:    types.TYPE_MINER_FOUND_NONCE,
 				Content: string(mncJSON),
 			}
-			c.Send <- resultNonce
+			c.Send <- &resultNonce
 		}()
 	}
 }
@@ -116,8 +116,7 @@ func (c *Client) resetConn() {
 func (c *Client) handleError(err error) {
 	switch {
 	case websocket.IsCloseError(err, websocket.CloseNormalClosure):
-		log.Warnf("Normal node closure: %v", err)
-		c.Done <- true
+		log.Fatalf("Normal node closure: %v", err)
 	case websocket.IsCloseError(err, websocket.CloseAbnormalClosure):
 		log.Fatalf("Node connection closed abnormally: %v", err)
 	case websocket.IsCloseError(err, websocket.CloseTryAgainLater):
@@ -133,18 +132,17 @@ func (c *Client) handleError(err error) {
 
 func (c *Client) send() {
 	for {
-		select {
-		case data, ok := <-c.Send:
-			if !ok {
-				c.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-				log.Fatal("Send channell is closed")
-			}
-			err := c.Conn.WriteJSON(&data)
-			if err != nil {
-				c.handleError(err)
-			}
+		data, ok := <-c.Send
+		if !ok {
+			_ = c.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+			return
+		}
+		err := c.Conn.WriteJSON(data)
+		if err != nil {
+			c.handleError(err)
 		}
 	}
+
 }
 
 func (c *Client) recv() {
@@ -162,8 +160,9 @@ func (c *Client) recv() {
 		case types.TYPE_MINER_BLOCK_UPDATE:
 			log.Debug("[MINER_BLOCK_UPDATE]")
 			for i := 0; i < c.Process; i++ {
-				c.StopMining <- 1
+				c.StopMining <- struct{}{}
 			}
+			pool.StopAndWait()
 
 			resp := types.PeerResponse{}
 			err = json.Unmarshal([]byte(result.Content), &resp)
@@ -172,8 +171,6 @@ func (c *Client) recv() {
 				return
 			}
 			log.Infof("[BLOCK-UPDATE] PREPARING NEXT SLOW BLOCK: %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
-
-			pool.StopAndWait()
 			for i := 0; i < c.Process; i++ {
 				func(Id int) {
 					pool.Submit(func() {

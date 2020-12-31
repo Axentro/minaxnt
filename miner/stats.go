@@ -18,8 +18,8 @@ type Stats struct {
 	lastTime    time.Time
 }
 
-func NewStats() Stats {
-	return Stats{
+func NewStats() *Stats {
+	return &Stats{
 		counter:     0,
 		lastCounter: 0,
 		lastTime:    time.Now(),
@@ -34,19 +34,17 @@ func (s *Stats) Start() {
 	var rate float64
 	t := time.NewTicker(TICK_SECONDS * time.Second)
 	for {
-		select {
-		case <-t.C:
-			now = time.Now()
-			timeDiff = now.Sub(s.lastTime)
-			currentCounter = s.Counter()
-			counterDiff = currentCounter - s.lastCounter
-			rate = float64(counterDiff) / timeDiff.Seconds()
+		<-t.C
+		now = time.Now()
+		timeDiff = now.Sub(s.lastTime)
+		currentCounter = s.Counter()
+		counterDiff = currentCounter - s.lastCounter
+		rate = float64(counterDiff) / timeDiff.Seconds()
 
-			log.Infof("Total Speed: %s, Time: %.1fs", s.humanizeRate(rate), timeDiff.Seconds())
+		log.Infof("Total Speed: %s, Time: %.1fs", s.humanizeRate(rate), timeDiff.Seconds())
 
-			s.lastCounter = currentCounter
-			s.lastTime = now
-		}
+		s.lastCounter = currentCounter
+		s.lastTime = now
 	}
 }
 
