@@ -46,7 +46,7 @@ func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce ui
 	var cDiff int32
 
 	nonce = rand.Uint32()
-	block.Nonce = fmt.Sprintf("%d", nonce)
+	block.Nonce = strconv.Itoa(int(nonce))
 	for {
 		select {
 		case <-c.StopMining:
@@ -61,7 +61,7 @@ func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce ui
 		} else {
 			nonce++
 		}
-		block.Nonce = fmt.Sprintf("%d", nonce)
+		block.Nonce = strconv.Itoa(int(nonce))
 		blockJSON, _ = json.Marshal(block)
 		cDiff = computeDifficulty(fmt.Sprintf("%x", sha256.Sum256(blockJSON)), nonce, miningDifficulty)
 		go c.Stats.Incr()

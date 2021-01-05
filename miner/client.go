@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"minaxnt/types"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -88,7 +89,7 @@ func (c *Client) FoundNonce(resp types.PeerResponse, Id int) {
 				Nonce: types.NewMinerNonce(),
 			}
 			mnc.Nonce.Mid = c.MinerID
-			mnc.Nonce.Value = fmt.Sprintf("%d", blockNonce)
+			mnc.Nonce.Value = strconv.Itoa(int(blockNonce))
 			mnc.Nonce.Timestamp = time.Now().UTC().UnixNano() / int64(time.Millisecond)
 			mnc.Nonce.Address = c.Address
 			mncJSON, err := json.Marshal(mnc)
