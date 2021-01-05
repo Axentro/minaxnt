@@ -15,19 +15,19 @@ import (
 )
 
 const (
-	Argon2Iterations  = 1
-	Argon2Memory      = 64 * 1024
-	Argon2Parallelism = 1
-	Argon2KeyLength   = 512
+	argon2Iterations  = 1
+	argon2Memory      = 64 * 1024
+	argon2Parallelism = 1
+	argon2KeyLength   = 512
 )
 
-func computeDifficulty(blockHash string, blockNonce uint64, difficulty int32) int32 {
-	nonce := strconv.FormatUint(blockNonce, 16)
+func computeDifficulty(blockHash string, blockNonce uint32, difficulty int32) int32 {
+	nonce := strconv.FormatUint(uint64(blockNonce), 16)
 	if utf8.RuneCountInString(nonce)%2 != 0 {
 		nonce = "0" + nonce
 	}
 
-	hash := argon2.IDKey([]byte(blockHash), []byte(nonce), Argon2Iterations, Argon2Memory, Argon2Parallelism, Argon2KeyLength)
+	hash := argon2.IDKey([]byte(blockHash), []byte(nonce), argon2Iterations, argon2Memory, argon2Parallelism, argon2KeyLength)
 
 	var leadingBits []string
 	for _, v := range hash {
@@ -41,11 +41,11 @@ func computeDifficulty(blockHash string, blockNonce uint64, difficulty int32) in
 	return int32(len(splitedStr))
 }
 
-func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce uint64, difficulty int32, stop bool) {
+func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce uint32, difficulty int32, stop bool) {
 	var blockJSON []byte
 	var cDiff int32
 
-	nonce = rand.Uint64()
+	nonce = rand.Uint32()
 	block.Nonce = fmt.Sprintf("%d", nonce)
 	for {
 		select {
@@ -54,10 +54,10 @@ func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce ui
 		default:
 		}
 
-		if nonce == math.MaxUint64 {
+		if nonce == math.MaxUint32 {
 			nonce = 0
 		} else if c.Stats.Counter()%250 == 0 {
-			nonce = rand.Uint64()
+			nonce = rand.Uint32()
 		} else {
 			nonce++
 		}

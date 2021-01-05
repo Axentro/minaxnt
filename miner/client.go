@@ -21,8 +21,7 @@ type Client struct {
 	NodeURL    string
 	Conn       *websocket.Conn
 	Send       chan *types.MessageResponse
-	Done       chan struct{}
-	MinerId    string
+	MinerID    string
 	Address    string
 	Process    int
 	StopMining chan struct{}
@@ -35,8 +34,7 @@ func NewClient(clientName string, nodeURL string, walletAddr string, numProcess 
 		NodeURL:    nodeURL,
 		Conn:       buildConn(nodeURL),
 		Send:       make(chan *types.MessageResponse),
-		Done:       make(chan struct{}, 1),
-		MinerId:    strings.Replace(uuid.New().String(), "-", "", -1),
+		MinerID:    strings.Replace(uuid.New().String(), "-", "", -1),
 		Address:    walletAddr,
 		Process:    numProcess,
 		StopMining: make(chan struct{}, numProcess),
@@ -69,7 +67,7 @@ func (c *Client) Start() {
 	// Handshake
 	handshake := types.MessageResponse{
 		Type:    types.TYPE_MINER_HANDSHAKE,
-		Content: fmt.Sprintf("{\"version\":%d,\"address\":\"%s\",\"mid\":\"%s\"}", types.CORE_VERSION, c.Address, c.MinerId),
+		Content: fmt.Sprintf("{\"version\":%d,\"address\":\"%s\",\"mid\":\"%s\"}", types.CORE_VERSION, c.Address, c.MinerID),
 	}
 	c.Send <- &handshake
 }
@@ -89,7 +87,7 @@ func (c *Client) FoundNonce(resp types.PeerResponse, Id int) {
 			mnc := types.MinerNonceContent{
 				Nonce: types.NewMinerNonce(),
 			}
-			mnc.Nonce.Mid = c.MinerId
+			mnc.Nonce.Mid = c.MinerID
 			mnc.Nonce.Value = fmt.Sprintf("%d", blockNonce)
 			mnc.Nonce.Timestamp = time.Now().UTC().UnixNano() / int64(time.Millisecond)
 			mnc.Nonce.Address = c.Address

@@ -20,7 +20,7 @@ func Welcome(client *miner.Client) {
 	fmt.Print(str)
 	fmt.Println()
 	fmt.Println("=>        miner name:", client.ClientName)
-	fmt.Println("=>          miner id:", client.MinerId)
+	fmt.Println("=>          miner id:", client.MinerID)
 	fmt.Println("=> connected to node:", client.NodeURL)
 	fmt.Println("=>     miner address:", client.Address)
 	fmt.Println("=>     miner process:", client.Process)

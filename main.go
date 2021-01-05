@@ -47,17 +47,13 @@ func main() {
 		log.Fatal("Wallet address is missing or is not valid!")
 	}
 	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	client := miner.NewClient(fmt.Sprintf("%s - %s", MinerName, Version), *node, *address, *process)
 	util.Welcome(client)
 	client.Start()
 
-	select {
-	case <-client.Done:
-		return
-	case <-interrupt:
-		log.Warnf("%s interrupt!!!", client.ClientName)
-		time.Sleep(1 * time.Second)
-	}
+	<-interrupt
+	log.Warnf("%s is stopped", client.ClientName)
+	time.Sleep(1 * time.Second) // A chance for remote close signal to be send
 }
