@@ -8,7 +8,7 @@ MinAXNT is well tested on:
 
 * GNU/Linux
   * x86_64
-  * ARM aarch64 (Raspberry Pi 3 Rev.3)
+  * ARM aarch64 (Raspberry Pi 3 Rev.3, Android smartphone with Termux)
 * MacOS (x86_64)
 * Windows
   * x86_64
@@ -66,13 +66,16 @@ On Windows the most powerful cores in HT CPU are those who have an _odd_ index (
 
 | **Device** | **Type** | **CPU Model** | **Operating System** | **MinAXNT process param** | **Work/s** | **MinAXNT version** |
 |------------|----------|---------------|----------------------|---------------------------|------------|---------------------|
-| **iMac Pro** | Desktop | Intel Xeon W-?? @3.00 GHz 10-core 64-bit | MacOs Catalina | 40 | **160 Work/s** | v0.7.0 |
-| **MacBook Pro** | Laptop | Intel Core i9-?? U@2.3 GHz 8-Core 64-bit | MacOS Big sur | 30 | **108 Work/s** | v0.7.0 |
-| MinisForum: DMAF5 | Mini-PC | AMD Ryzen 5 3550H with Radeon Vega Mobile Gfx @2.10 GHz 4-core HT (8 vcore) 64-bit | Windows 10 Family (x86_64) | 8 | **69 Work/s** | v0.9.0 |
-| Lenovo: Y510P | Laptop | Intel(R) Core(TM) i7-4700MQ @2.40GHz Rev.3 4-core HT (8 vcore) 32-bit-64-bit | Ununtu 18.04 (x86_64) | 8 | **49 Work/s** (45 Work/s when using only the 4 physical CPU: `taskset -c 0,2,4,6 ./minaxnt -a xxx -p4`) | v0.9.0 |
-| **IMB/PC** | Laptop | Intel i7-7820 HQ @2.90 GHz  4-core HT (8 vcore) 64-bit | Windows 10 Pro | ?? | **36 Work/s** | v0.7.0 |
-| PINE64: ROCKPro64 2Gio RAM | SBC (ARM) | RK3399 Hexa-Core (2x ARM Cortex A72, 2.0GHz + 4x ARM Cortex A53, 1.5GHz)  | Ubuntu 18.04 (aarch64) | 6 | **10 Work/s** | v0.7.0 |
-| Raspberry Pi 4, ?? Gio RAM | SBC (ARM) | 4x ARM Cortex-A72, 1.5GHz | ?? (aarch64) | ?? | **xx Work/s** | - |
+| **iMac Pro** | Desktop | Intel Xeon W-?? @3.00 GHz 10-core 64-bit | MacOs Catalina | 40 | **160.0 Work/s** | v0.7.0 |
+| **MacBook Pro** | Laptop | Intel Core i9-?? U@2.3 GHz 8-Core 64-bit | MacOS Big sur | 30 | **108.0 Work/s** | v0.7.0 |
+| MinisForum: DMAF5 | Mini-PC | AMD Ryzen 5 3550H with Radeon Vega Mobile Gfx @2.10 GHz 4-core HT (8 vcore) 64-bit | Windows 10 Family (x86_64) | 8 | **69.0 Work/s** | v0.9.0 |
+| Lenovo: Y510P | Laptop | Intel(R) Core(TM) i7-4700MQ @2.40GHz Rev.3 4-core HT (8 vcore) 32-bit-64-bit | Ununtu 18.04 (x86_64) | 8 | **49.0 Work/s** (45 Work/s when using only the 4 physical CPU: `taskset -c 0,2,4,6 ./minaxnt -a xxx -p4`) | v0.9.0 |
+| **IMB/PC** | Laptop | Intel i7-7820 HQ @2.90 GHz  4-core HT (8 vcore) 64-bit | Windows 10 Pro | ?? | **36.0 Work/s** | v0.7.0 |
+| **IBM/PC** | Desktop | Intel(R) Celeron(R) CPU G3900 @ 2.80GHz 2-core 64-bit | Ubuntu 18.04 (aarch64) | 3 | **24.8 Work/s** | v0.10.0 |
+| **Xiaomi MI 6** | Smartphone | Qualcomm Snapdragon 835: 4x Kryo 280 @2.45 GHz, 4x Kryo 280 @1.9 GHz (Octa-core, Cortex A72 or A73) | Android 9 | 8 | **15.7 Work/s** | v0.10.0 |
+| PINE64: ROCKPro64 2Gio RAM | SBC (ARM) | RK3399 Hexa-Core (2x ARM Cortex A72, 2.0GHz + 4x ARM Cortex A53, 1.5GHz)  | Ubuntu 18.04 (aarch64) | 6 | **10.0 Work/s** | v0.7.0 |
+| **Samsung Galaxy A7** | Smartphone | 2 x Cortex-A73 + 6 Cortex-A53 - @2.2 GHz | Android 10 | 2 | **7.0 Work/s** |v0.10.0|
+| Raspberry Pi 4, ?? Gio RAM | SBC (ARM) | 4x ARM Cortex-A72, 1.5GHz | ?? (aarch64) | ?? | **xx.x Work/s** | - |
 | Raspberry Pi 3 Model B Rev 1.2, 1 Gio RAM | SBC (ARM) | 4x ARM Cortex-A53, 1.2GHz | Alpine Linux 5.4.84-0-rpi (aarch64) | 4 | **2.6 Work/s** | v0.9.0 |
 
 ## License
