@@ -17,24 +17,25 @@ MinAXNT is well tested on:
 
 Installing MinAXNT is really simple:
 
-First: _You need an Axentro wallet address to use the miner, please visite the [website](https://axentro.io/) or the [Youtube channel](https://www.youtube.com/channel/UC8itve8eHunJkfuyJYwMy6g)_
+First: _You need an Axentro wallet address to start mining, please visite the [website](https://axentro.io/) or the [Youtube channel](https://www.youtube.com/watch?v=aZd9ZPfDC2g)_
 
+* If you are using an Android device go to the dedicated installation page: <https://github.com/Axentro/minaxnt/wiki/Install-MinAXNT-on-Android-device/>, otherwise follow the next step
 * Download your platform archive: <https://github.com/fenicks/minaxnt/releases/>
-* Uncompress the archive in a directory of your choice
-* Open a terminal and go the MinAXNT directory
-* Run the program as described in the section bellow
+* Uncompress the archive to a directory of your choice
+* Open a terminal and go to the MinAXNT directory
+* Run the program as described in _[Usage](#usage)_ section by setting you own address (`-a` parameter)
 
 ## Usage
 
-    ./minaxnt -n http://mainnet.axentro.io -a TTAyNmVjNGU4MTBlYzc1ZWVmNDMyYzc4MjI5NGRmZWNhYzUwMzJjN2UyYzlhNzE3 -p 2
+    ./minaxnt -n http://mainnet.axentro.io -a TTBjMjg1NWJmZTIwMTA3MDc3NTZkNjg1MTcxYjE1YmE5ZjU3N2EzODhkYWRiZWIy -p 2
 
 OR
 
-    ./minaxnt --node http://mainnet.axentro.io --address TTAyNmVjNGU4MTBlYzc1ZWVmNDMyYzc4MjI5NGRmZWNhYzUwMzJjN2UyYzlhNzE3 --process 2
+    ./minaxnt --node http://mainnet.axentro.io --address TTBjMjg1NWJmZTIwMTA3MDc3NTZkNjg1MTcxYjE1YmE5ZjU3N2EzODhkYWRiZWIy --process 2
 
 OR
 
-    minaxnt.exe --node http://mainnet.axentro.io --address TTAyNmVjNGU4MTBlYzc1ZWVmNDMyYzc4MjI5NGRmZWNhYzUwMzJjN2UyYzlhNzE3 --process 2
+    minaxnt.exe --node http://mainnet.axentro.io --address TTBjMjg1NWJmZTIwMTA3MDc3NTZkNjg1MTcxYjE1YmE5ZjU3N2EzODhkYWRiZWIy --process 2
 
 Have fun !
 
@@ -42,11 +43,11 @@ Have fun !
 
 ### CPU Affinity : Hyper-Threaded Architecture
 
-Sometime you have to use the same computer to mine $AXNT and do other stuff.
+Sometime you have to use the same computer for mining and doing other stuff at the same time.
 
 That's interesting to configure MinAXNT to use only a limited cores in order to use your computer in the same time.
 
-To use MinAXNT on only 4 logical cores (the most powerful), you could use external tips described bellow:
+To use MinAXNT on only 4 cores (the most powerful) go to the section corresponding to your use case:
 
 #### Linux with `taskset`
 
