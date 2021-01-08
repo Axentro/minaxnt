@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
-	"fmt"
+	"encoding/hex"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -19,14 +19,18 @@ func IsValidAddress(addr string) bool {
 	}
 	log.Debugf("Check validity of the address: %s (%s)", addr, hexAddr)
 
-	version := hexAddr[:42]
+	versionHash := sha256.Sum256(hexAddr[:42])
+	version := hex.EncodeToString(versionHash[:])
+
+	dblVersionHash := sha256.Sum256([]byte(version))
+	dblVersion := hex.EncodeToString(dblVersionHash[:])
+
 	checksum := hexAddr[42:]
-	doubleSha256 := fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("%x", sha256.Sum256(version)))))
 
 	switch {
 	case len(hexAddr) != 48:
 		return false
-	case !bytes.Equal(checksum, []byte(doubleSha256)[:6]):
+	case !bytes.Equal(checksum, []byte(dblVersion)[:6]):
 		return false
 	}
 	return true

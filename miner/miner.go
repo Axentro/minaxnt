@@ -2,6 +2,7 @@ package miner
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -44,6 +45,7 @@ func computeDifficulty(blockHash string, blockNonce uint32, difficulty int32) in
 func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce uint32, difficulty int32, stop bool) {
 	var blockJSON []byte
 	var cDiff int32
+	var tempoHash [32]byte
 
 	nonce = rand.Uint32()
 	block.Nonce = strconv.Itoa(int(nonce))
@@ -63,7 +65,8 @@ func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce ui
 		}
 		block.Nonce = strconv.Itoa(int(nonce))
 		blockJSON, _ = json.Marshal(block)
-		cDiff = computeDifficulty(fmt.Sprintf("%x", sha256.Sum256(blockJSON)), nonce, miningDifficulty)
+		tempoHash = sha256.Sum256(blockJSON)
+		cDiff = computeDifficulty(hex.EncodeToString(tempoHash[:]), nonce, miningDifficulty)
 		go c.Stats.Incr()
 
 		if cDiff >= miningDifficulty {

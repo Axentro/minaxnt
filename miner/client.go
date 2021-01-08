@@ -61,10 +61,10 @@ func buildConn(nodeURL string) *websocket.Conn {
 }
 
 func (c *Client) Start() {
+	go c.Stats.Start()
 	go c.send()
 	go c.recv()
-	go c.Stats.Start()
-
+	
 	// Handshake
 	handshake := types.MessageResponse{
 		Type:    types.TYPE_MINER_HANDSHAKE,
