@@ -76,7 +76,7 @@ func buildConn(nodeURL string, retry bool) *websocket.Conn {
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
 		if retry {
-			retryTimes := 6
+			retryTimes := 180
 			retrySleep := 10 * time.Second
 			for {
 				retryTimes--
@@ -157,6 +157,7 @@ func (c *Client) resetConnOrFail() {
 
 	_ = c.conn.Close()
 	c.conn = buildConn(c.NodeURL, true)
+	log.Warn("Node connection established from error")
 
 	c.sendHandshake()
 
