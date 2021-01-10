@@ -50,10 +50,8 @@ func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce ui
 	nonce = rand.Uint32()
 	block.Nonce = strconv.Itoa(int(nonce))
 	for {
-		select {
-		case <-c.StopMining:
+		if c.StopClient.IsSet() {
 			return 0, 0, true
-		default:
 		}
 
 		if nonce == math.MaxUint32 {

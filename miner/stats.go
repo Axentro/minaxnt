@@ -6,16 +6,14 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-)
-
-const (
-	TICK_SECONDS time.Duration = 10
+	"github.com/tevino/abool"
 )
 
 type Stats struct {
 	counter     uint64
 	lastCounter uint64
 	lastTime    time.Time
+	isRunning   *abool.AtomicBool
 }
 
 func NewStats() *Stats {
@@ -23,18 +21,25 @@ func NewStats() *Stats {
 		counter:     0,
 		lastCounter: 0,
 		lastTime:    time.Now(),
+		isRunning:   abool.New(),
 	}
 }
 
 func (s *Stats) Start() {
+	if s.isRunning.IsSet() {
+		return
+	}
+	s.isRunning.Set()
+
 	var now time.Time
 	var timeDiff time.Duration
 	var currentCounter uint64
 	var counterDiff uint64
 	var rate float64
-	t := time.NewTicker(TICK_SECONDS * time.Second)
+
 	for {
-		<-t.C
+		time.Sleep(10 * time.Second)
+
 		now = time.Now()
 		timeDiff = now.Sub(s.lastTime)
 		currentCounter = s.Counter()

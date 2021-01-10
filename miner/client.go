@@ -14,36 +14,45 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
+	"github.com/tevino/abool"
 )
 
 type Client struct {
 	sync.Mutex
 	ClientName string
 	NodeURL    string
-	Conn       *websocket.Conn
-	Send       chan *types.MessageResponse
+	conn       *websocket.Conn
+	sendChan   chan *types.MessageResponse
 	MinerID    string
 	Address    string
 	Process    int
-	StopMining chan struct{}
+	StopClient *abool.AtomicBool
 	Stats      *Stats
+	pool       *pond.WorkerPool
+	handshake  *types.MessageResponse
 }
 
 func NewClient(clientName string, nodeURL string, walletAddr string, numProcess int) *Client {
+	minerID := strings.Replace(uuid.New().String(), "-", "", -1)
 	return &Client{
 		ClientName: clientName,
 		NodeURL:    nodeURL,
-		Conn:       buildConn(nodeURL),
-		Send:       make(chan *types.MessageResponse),
-		MinerID:    strings.Replace(uuid.New().String(), "-", "", -1),
+		conn:       buildConn(nodeURL, false),
+		sendChan:   make(chan *types.MessageResponse),
+		MinerID:    minerID,
 		Address:    walletAddr,
 		Process:    numProcess,
-		StopMining: make(chan struct{}, numProcess),
+		StopClient: abool.New(),
 		Stats:      NewStats(),
+		pool:       pond.New(numProcess, 0, pond.MinWorkers(numProcess)),
+		handshake: &types.MessageResponse{
+			Type:    types.TYPE_MINER_HANDSHAKE,
+			Content: fmt.Sprintf("{\"version\":%d,\"address\":\"%s\",\"mid\":\"%s\"}", types.CORE_VERSION, walletAddr, minerID),
+		},
 	}
 }
 
-func buildConn(nodeURL string) *websocket.Conn {
+func buildConn(nodeURL string, retry bool) *websocket.Conn {
 	nu, err := url.Parse(nodeURL)
 	if err != nil {
 		log.Fatal("Can't parse the node URL: ", err)
@@ -55,35 +64,62 @@ func buildConn(nodeURL string) *websocket.Conn {
 	u := url.URL{Scheme: scheme, Host: nu.Host, Path: "/peer"}
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		log.Fatal("dial:", err)
+		if retry {
+			retryTimes := 6
+			retrySleep := 10 * time.Second
+			for {
+				retryTimes--
+				time.Sleep(retrySleep)
+				conn, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
+				if err != nil {
+					if retryTimes == 0 {
+						log.Fatal("Tried to reconnect without success")
+					}
+					log.Warn("Failed to reconnect to the node, trying again...")
+					continue
+				}
+				log.Warn("Connection to the node is establiched again")
+				break
+			}
+		} else {
+			log.Fatalf("Connection to node failed: %v", err)
+		}
 	}
 	return conn
+}
+
+func (c *Client) sendHandshake() {
+	c.sendChan <- c.handshake
 }
 
 func (c *Client) Start() {
 	go c.Stats.Start()
 	go c.send()
 	go c.recv()
-	
-	// Handshake
-	handshake := types.MessageResponse{
-		Type:    types.TYPE_MINER_HANDSHAKE,
-		Content: fmt.Sprintf("{\"version\":%d,\"address\":\"%s\",\"mid\":\"%s\"}", types.CORE_VERSION, c.Address, c.MinerID),
-	}
-	c.Send <- &handshake
+
+	c.sendHandshake()
 }
 
-func (c *Client) FoundNonce(resp types.PeerResponse, Id int) {
+func (c *Client) startMining() {
+	c.StopClient.UnSet()
+}
+
+func (c *Client) stopMining() {
+	c.StopClient.Set()
+	c.pool.StopAndWait()
+}
+
+func (c *Client) foundNonce(resp types.PeerResponse, workerID int) {
 	for {
-		log.Debugf("[#%d] Start mining block index: %d", Id, resp.Block.Index)
+		log.Debugf("[#%d] Start mining block index: %d", workerID, resp.Block.Index)
 		blockNonce, computedDifficulty, stop := Mining(resp.Block, resp.MiningDifficulty, c)
 		if stop {
-			log.Debugf("[#%d] Stop mining block index: %d", Id, resp.Block.Index)
+			log.Debugf("[#%d] Stop mining block index: %d", workerID, resp.Block.Index)
 			return
 		}
 		go func() {
-			log.Infof("[#%d] Found new nonce(diff. %d, required %d): %d", Id, computedDifficulty, resp.MiningDifficulty, blockNonce)
-			log.Debugf("[#%d] => Nonce for block: %d", Id, resp.Block.Index)
+			log.Infof("[#%d] Found new nonce(diff. %d, required %d): %d", workerID, computedDifficulty, resp.MiningDifficulty, blockNonce)
+			log.Debugf("[#%d] => Nonce for block: %d", workerID, resp.Block.Index)
 
 			mnc := types.MinerNonceContent{
 				Nonce: types.NewMinerNonce(),
@@ -94,74 +130,89 @@ func (c *Client) FoundNonce(resp types.PeerResponse, Id int) {
 			mnc.Nonce.Address = c.Address
 			mncJSON, err := json.Marshal(mnc)
 			if err != nil {
-				log.Errorf("[#%d] Can't convert miner nonce to JSON: %s", Id, err)
+				log.Errorf("[#%d] Can't convert miner nonce to JSON: %s", workerID, err)
 			}
 			resultNonce := types.MessageResponse{
 				Type:    types.TYPE_MINER_FOUND_NONCE,
 				Content: string(mncJSON),
 			}
-			c.Send <- &resultNonce
+			c.sendChan <- &resultNonce
 		}()
 	}
 }
 
-func (c *Client) resetConn() {
-	c.Lock()
-	defer c.Unlock()
-	_ = c.Conn.Close()
-	c.Conn = buildConn(c.NodeURL)
+func (c *Client) resetConnOrFail() {
+	c.stopMining()
+
+	_ = c.conn.Close()
+	c.conn = buildConn(c.NodeURL, true)
+
+	c.sendHandshake()
+
+	c.startMining()
 }
 
 func (c *Client) handleError(err error) {
+	c.Lock()
+	defer c.Unlock()
+
 	switch {
 	case websocket.IsCloseError(err, websocket.CloseNormalClosure):
-		log.Fatalf("Normal node closure: %v", err)
+		log.Errorf("Normal node closure: %v", err)
 	case websocket.IsCloseError(err, websocket.CloseAbnormalClosure):
-		log.Fatalf("Node connection closed abnormally: %v", err)
+		log.Errorf("Node connection closed abnormally: %v", err)
 	case websocket.IsCloseError(err, websocket.CloseTryAgainLater):
 		log.Warn("Node is online but not ready")
 		log.Debug("=> Waiting for node for 60 seconds")
 		time.Sleep(60 * time.Second)
-		c.resetConn()
-		log.Debug("=> Node connection reseted")
 	default:
-		log.Fatalf("Connection is not available: %v", err)
+		log.Errorf("Node connection lost: %v", err)
 	}
+	c.resetConnOrFail()
+	log.Debug("=> Node connection is back again")
 }
 
 func (c *Client) send() {
 	for {
-		data, ok := <-c.Send
+		if c.StopClient.IsSet() {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		data, ok := <-c.sendChan
 		if !ok {
-			_ = c.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+			_ = c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 			return
 		}
-		err := c.Conn.WriteJSON(data)
+		err := c.conn.WriteJSON(data)
 		if err != nil {
 			c.handleError(err)
 		}
 	}
-
 }
 
 func (c *Client) recv() {
-	pool := pond.New(c.Process, 0, pond.MinWorkers(c.Process))
 	for {
+		if c.StopClient.IsSet() {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
 		log.Debug("Waiting for node data...")
 
 		result := types.MessageResponse{}
-		err := c.Conn.ReadJSON(&result)
+		err := c.conn.ReadJSON(&result)
 		if err != nil {
 			c.handleError(err)
 		}
 		log.Debugf("Received message from blockchain: %+v", result)
+
 		switch result.Type {
 		case types.TYPE_MINER_BLOCK_UPDATE:
 			log.Debug("[MINER_BLOCK_UPDATE]")
-			for i := 0; i < c.Process; i++ {
-				c.StopMining <- struct{}{}
-			}
-			pool.StopAndWait()
+
+			c.stopMining()
+			c.startMining()
 
 			resp := types.PeerResponse{}
 			err = json.Unmarshal([]byte(result.Content), &resp)
@@ -171,9 +222,9 @@ func (c *Client) recv() {
 			}
 			log.Infof("[BLOCK-UPDATE] PREPARING NEXT SLOW BLOCK: %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
 			for i := 0; i < c.Process; i++ {
-				func(Id int) {
-					pool.Submit(func() {
-						c.FoundNonce(resp, Id)
+				func(workerID int) {
+					c.pool.Submit(func() {
+						c.foundNonce(resp, workerID)
 					})
 				}(i)
 			}
@@ -189,9 +240,9 @@ func (c *Client) recv() {
 			log.Infof("[START] PREPARING NEXT SLOW BLOCK: %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
 
 			for i := 0; i < c.Process; i++ {
-				func(Id int) {
-					pool.Submit(func() {
-						c.FoundNonce(resp, Id)
+				func(workerID int) {
+					c.pool.Submit(func() {
+						c.foundNonce(resp, workerID)
 					})
 				}(i)
 			}
