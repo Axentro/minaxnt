@@ -24,4 +24,7 @@ func Welcome(client *miner.Client) {
 	fmt.Println("=> connected to node:", client.NodeURL)
 	fmt.Println("=>     miner address:", client.Address)
 	fmt.Println("=>     miner process:", client.Process)
+	fmt.Println("=>         cpu model:", client.CPUModel)
+	fmt.Println("=>         cpu cores:", client.CPUCores)
+	fmt.Println("=>      cpu features:", client.CPUFeatures)
 }

@@ -6,6 +6,7 @@ require (
 	github.com/alitto/pond v1.4.0
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/websocket v1.4.2
+	github.com/klauspost/cpuid/v2 v2.0.3
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.8
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect

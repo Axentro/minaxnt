@@ -13,38 +13,49 @@ import (
 	"github.com/alitto/pond"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/klauspost/cpuid/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/tevino/abool"
 )
 
 type Client struct {
 	sync.Mutex
-	ClientName string
-	NodeURL    string
-	conn       *websocket.Conn
-	sendChan   chan *types.MessageResponse
-	MinerID    string
-	Address    string
-	Process    int
-	StopClient *abool.AtomicBool
-	Stats      *Stats
-	pool       *pond.WorkerPool
-	handshake  *types.MessageResponse
+	ClientName  string
+	CPUModel    string
+	CPUFeatures string
+	CPUCores    string
+	NodeURL     string
+	conn        *websocket.Conn
+	sendChan    chan *types.MessageResponse
+	MinerID     string
+	Address     string
+	Process     int
+	StopClient  *abool.AtomicBool
+	Stats       *Stats
+	pool        *pond.WorkerPool
+	handshake   *types.MessageResponse
 }
 
 func NewClient(clientName string, nodeURL string, walletAddr string, numProcess int) *Client {
 	minerID := strings.Replace(uuid.New().String(), "-", "", -1)
+	cpuFeatures := "[-]"
+	if cpuid.CPU.Supports(cpuid.SSE, cpuid.SSE2, cpuid.SSE4, cpuid.AVX, cpuid.AVX2) {
+		cpuFeatures = "SSE, SSE2, SSE4: [✔] - AVX, AVX2: [✔]"
+	}
 	return &Client{
-		ClientName: clientName,
-		NodeURL:    nodeURL,
-		conn:       buildConn(nodeURL, false),
-		sendChan:   make(chan *types.MessageResponse),
-		MinerID:    minerID,
-		Address:    walletAddr,
-		Process:    numProcess,
-		StopClient: abool.New(),
-		Stats:      NewStats(),
-		pool:       pond.New(numProcess, 0, pond.MinWorkers(numProcess)),
+		ClientName:  clientName,
+		CPUModel:    cpuid.CPU.BrandName,
+		CPUFeatures: cpuFeatures,
+		CPUCores:    fmt.Sprintf("Physical => %d, Logical => %d, Threads/core => %d", cpuid.CPU.PhysicalCores, cpuid.CPU.LogicalCores, cpuid.CPU.ThreadsPerCore),
+		NodeURL:     nodeURL,
+		conn:        buildConn(nodeURL, false),
+		sendChan:    make(chan *types.MessageResponse),
+		MinerID:     minerID,
+		Address:     walletAddr,
+		Process:     numProcess,
+		StopClient:  abool.New(),
+		Stats:       NewStats(),
+		pool:        pond.New(numProcess, 0, pond.MinWorkers(numProcess)),
 		handshake: &types.MessageResponse{
 			Type:    types.TYPE_MINER_HANDSHAKE,
 			Content: fmt.Sprintf("{\"version\":%d,\"address\":\"%s\",\"mid\":\"%s\"}", types.CORE_VERSION, walletAddr, minerID),
