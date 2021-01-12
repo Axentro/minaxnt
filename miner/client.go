@@ -1,6 +1,7 @@
 package miner
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"minaxnt/types"
@@ -38,14 +39,10 @@ type Client struct {
 
 func NewClient(clientName string, nodeURL string, walletAddr string, numProcess int) *Client {
 	minerID := strings.Replace(uuid.New().String(), "-", "", -1)
-	cpuFeatures := "[-]"
-	if cpuid.CPU.Supports(cpuid.SSE, cpuid.SSE2, cpuid.SSE4, cpuid.AVX, cpuid.AVX2) {
-		cpuFeatures = "SSE, SSE2, SSE4: [✔] - AVX, AVX2: [✔]"
-	}
 	return &Client{
 		ClientName:  clientName,
-		CPUModel:    cpuid.CPU.BrandName,
-		CPUFeatures: cpuFeatures,
+		CPUModel:    cpuModel(),
+		CPUFeatures: cpuFeatures(),
 		CPUCores:    fmt.Sprintf("Physical => %d, Logical => %d, Threads/core => %d", cpuid.CPU.PhysicalCores, cpuid.CPU.LogicalCores, cpuid.CPU.ThreadsPerCore),
 		NodeURL:     nodeURL,
 		conn:        buildConn(nodeURL, false),
@@ -61,6 +58,53 @@ func NewClient(clientName string, nodeURL string, walletAddr string, numProcess 
 			Content: fmt.Sprintf("{\"version\":%d,\"address\":\"%s\",\"mid\":\"%s\"}", types.CORE_VERSION, walletAddr, minerID),
 		},
 	}
+}
+
+func cpuModel() string {
+	cpuModel := cpuid.CPU.BrandName
+
+	if len(cpuModel) == 0 {
+		cpuModel = "[-]"
+	}
+
+	return cpuModel
+}
+
+func cpuFeatures() string {
+	var cpuFeaturesBuffer bytes.Buffer
+
+	if cpuid.CPU.Has(cpuid.SSE) {
+		cpuFeaturesBuffer.WriteString("SSE:[✔]")
+	}
+	if cpuid.CPU.Has(cpuid.SSE2) {
+		if cpuFeaturesBuffer.Len() != 0 {
+			cpuFeaturesBuffer.WriteString(", ")
+		}
+		cpuFeaturesBuffer.WriteString("SSE2:[✔]")
+	}
+	if cpuid.CPU.Has(cpuid.SSE4) {
+		if cpuFeaturesBuffer.Len() != 0 {
+			cpuFeaturesBuffer.WriteString(", ")
+		}
+		cpuFeaturesBuffer.WriteString("SSE4:[✔]")
+	}
+	if cpuid.CPU.Has(cpuid.AVX) {
+		if cpuFeaturesBuffer.Len() != 0 {
+			cpuFeaturesBuffer.WriteString(", ")
+		}
+		cpuFeaturesBuffer.WriteString("AVX:[✔]")
+	}
+	if cpuid.CPU.Has(cpuid.AVX2) {
+		if cpuFeaturesBuffer.Len() != 0 {
+			cpuFeaturesBuffer.WriteString(", ")
+		}
+		cpuFeaturesBuffer.WriteString("AVX2:[✔]")
+	}
+
+	if cpuFeaturesBuffer.Len() == 0 {
+		cpuFeaturesBuffer.WriteString("[-]")
+	}
+	return cpuFeaturesBuffer.String()
 }
 
 func buildConn(nodeURL string, retry bool) *websocket.Conn {
