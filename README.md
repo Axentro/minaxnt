@@ -19,6 +19,8 @@ Installing MinAXNT is really simple:
 
 First: _You need an Axentro wallet address to start mining, please visite the [website](https://axentro.io/) or the [Youtube channel](https://www.youtube.com/watch?v=aZd9ZPfDC2g)_
 
+> You can create a wallet with the [Web wallet](https://axentro.xyz/)
+
 * If you are using an Android device go to the dedicated installation page: <https://github.com/Axentro/minaxnt/wiki/Install-MinAXNT-on-Android-device/>, otherwise follow the next step
 * Download your platform archive: <https://github.com/fenicks/minaxnt/releases/>
 * Uncompress the archive to a directory of your choice
