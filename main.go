@@ -21,8 +21,9 @@ var (
 	node      = flag.StringP("node", "n", "http://mainnet.axentro.io", "Node URL to mine against")
 	process   = flag.IntP("process", "p", 1, "Number of core(s) to use")
 	debug     = flag.Bool("debug", false, "Set log level to debug")
-	MinerName = "MinAXNT"
-	Version   = "v0.0.0"
+	minerName = "MinAXNT"
+	// Version of MinAXNT
+	Version = "v0.0.0"
 )
 
 func init() {
@@ -49,7 +50,7 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	client := miner.NewClient(fmt.Sprintf("%s - %s", MinerName, Version), *node, *address, *process)
+	client := miner.NewClient(fmt.Sprintf("%s - %s", minerName, Version), *node, *address, *process)
 	util.Welcome(client)
 	client.Start()
 
