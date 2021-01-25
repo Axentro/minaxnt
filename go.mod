@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/alitto/pond v1.4.0
+	github.com/dustin/go-humanize v1.0.0
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/websocket v1.4.2
 	github.com/klauspost/cpuid/v2 v2.0.3

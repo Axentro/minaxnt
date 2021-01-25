@@ -61,8 +61,7 @@ func (s *Stats) Counter() uint64 {
 	return atomic.LoadUint64(&s.counter)
 }
 
-func (s *Stats) humanizeRate(rate float64) string {
-	var hr string
+func (s *Stats) humanizeRate(rate float64) (hr string) {
 	if rate/1000.0 <= 1.0 {
 		hr = fmt.Sprintf("%.1f Work/s", rate)
 	} else if rate/1000000.0 <= 1.0 {

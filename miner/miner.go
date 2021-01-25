@@ -10,6 +10,7 @@ import (
 	"minaxnt/types"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"golang.org/x/crypto/argon2"
@@ -22,8 +23,8 @@ const (
 	argon2KeyLength   = 512
 )
 
-func computeDifficulty(blockHash string, blockNonce uint32, difficulty int32) int32 {
-	nonce := strconv.FormatUint(uint64(blockNonce), 16)
+func computeDifficulty(blockHash string, blockNonce uint64) int32 {
+	nonce := strconv.FormatUint(blockNonce, 16)
 	if utf8.RuneCountInString(nonce)%2 != 0 {
 		nonce = "0" + nonce
 	}
@@ -42,33 +43,46 @@ func computeDifficulty(blockHash string, blockNonce uint32, difficulty int32) in
 	return int32(len(splitedStr))
 }
 
-func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (nonce uint32, difficulty int32, stop bool) {
-	var blockJSON []byte
-	var cDiff int32
-	var tempoHash [32]byte
+type MiningResult struct {
+	Nonce      string
+	Difficulty int32
+	Timestamp  int64
+	Sha256Sum  string
+}
 
-	nonce = rand.Uint32()
-	block.Nonce = strconv.Itoa(int(nonce))
+func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (mr MiningResult, stop bool) {
+	var blockJSON []byte
+	var diff int32
+	var blockHash [32]byte
+	var blockHashString string
+
+	nonce := rand.Uint64()
+	block.Difficulty = miningDifficulty
 	for {
 		if c.StopClient.IsSet() {
-			return 0, 0, true
+			return MiningResult{}, true
 		}
+		block.Timestamp = time.Now().Unix()
 
-		if nonce == math.MaxUint32 {
+		if nonce == math.MaxUint64 {
 			nonce = 0
-		} else if c.Stats.Counter()%250 == 0 {
-			nonce = rand.Uint32()
+		} else if c.Stats.Counter()%100 == 0 {
+			nonce = rand.Uint64()
 		} else {
 			nonce++
 		}
-		block.Nonce = strconv.Itoa(int(nonce))
+		block.Nonce = strconv.FormatUint(nonce, 10)
 		blockJSON, _ = json.Marshal(block)
-		tempoHash = sha256.Sum256(blockJSON)
-		cDiff = computeDifficulty(hex.EncodeToString(tempoHash[:]), nonce, miningDifficulty)
+		blockHash = sha256.Sum256(blockJSON)
+		blockHashString = hex.EncodeToString(blockHash[:])
+		diff = computeDifficulty(blockHashString, nonce)
 		go c.Stats.Incr()
-
-		if cDiff >= miningDifficulty {
-			return nonce, cDiff, false
+		if diff >= miningDifficulty {
+			mr.Nonce = block.Nonce
+			mr.Difficulty = block.Difficulty
+			mr.Timestamp = block.Timestamp
+			mr.Sha256Sum = blockHashString
+			return mr, false
 		}
 	}
 }
