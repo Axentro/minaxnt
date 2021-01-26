@@ -173,37 +173,38 @@ func (c *Client) restartMining() {
 
 func (c *Client) foundNonce(resp types.PeerResponse, workerID int) {
 	log.Debugf("[#%d] Start mining block index: %d", workerID, resp.Block.Index)
+	for {
+		mr, stop := Mining(resp.Block, resp.MiningDifficulty, c)
+		if stop {
+			log.Debugf("[#%d] Stop mining block index: %d", workerID, resp.Block.Index)
+			return
+		}
 
-	mr, stop := Mining(resp.Block, resp.MiningDifficulty, c)
-	if stop {
-		log.Debugf("[#%d] Stop mining block index: %d", workerID, resp.Block.Index)
-		return
+		log.Infof("[#%d] Found new nonce(diff. %d, required %d): %s", workerID, mr.Difficulty, resp.MiningDifficulty, mr.Nonce)
+		log.Debugf("[#%d] => Nonce for block: %d", workerID, resp.Block.Index)
+
+		mnc := types.MinerNonceContent{
+			Nonce: types.NewMinerNonce(),
+		}
+		mnc.Nonce.Mid = c.MinerID
+		mnc.Nonce.Value = mr.Nonce
+		mnc.Nonce.Timestamp = mr.Timestamp
+		mnc.Nonce.Address = c.Address
+		mnc.Nonce.Difficulty = resp.MiningDifficulty
+
+		mncJSON, err := json.Marshal(mnc)
+		if err != nil {
+			log.Errorf("[#%d] Can't convert miner nonce to JSON: %s", workerID, err)
+		}
+
+		resultNonce := types.MessageResponse{
+			Type:    types.TypeMinerFoundNonce,
+			Content: string(mncJSON),
+		}
+
+		c.sendChan <- &resultNonce
+		log.Debugf("Miner nonce content sent to node: %v", resultNonce)
 	}
-
-	log.Infof("[#%d] Found new nonce(diff. %d, required %d): %s", workerID, mr.Difficulty, resp.MiningDifficulty, mr.Nonce)
-	log.Debugf("[#%d] => Nonce for block: %d", workerID, resp.Block.Index)
-
-	mnc := types.MinerNonceContent{
-		Nonce: types.NewMinerNonce(),
-	}
-	mnc.Nonce.Mid = c.MinerID
-	mnc.Nonce.Value = mr.Nonce
-	mnc.Nonce.Timestamp = mr.Timestamp
-	mnc.Nonce.Address = c.Address
-	mnc.Nonce.Difficulty = resp.MiningDifficulty
-
-	mncJSON, err := json.Marshal(mnc)
-	if err != nil {
-		log.Errorf("[#%d] Can't convert miner nonce to JSON: %s", workerID, err)
-	}
-
-	resultNonce := types.MessageResponse{
-		Type:    types.TypeMinerFoundNonce,
-		Content: string(mncJSON),
-	}
-
-	c.sendChan <- &resultNonce
-	log.Debugf("Miner nonce content sent to node: %v", resultNonce)
 }
 
 func (c *Client) resetConnOrFail() {
@@ -359,7 +360,7 @@ func (c *Client) recv() {
 			}
 			log.Fatal("Handshake rejected: ", reason.Reason)
 		default:
-			log.Fatalf("Unknonw response type %d: %v", result.Type, result)
+			log.Warnf("Unknonw response type %d: %v", result.Type, result)
 		}
 	}
 }
