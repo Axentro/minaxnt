@@ -44,9 +44,7 @@ type MinerBlock struct {
 	Nonce          string        `json:"nonce"`
 	PrevHash       string        `json:"prev_hash"`
 	MerkleTreeRoot string        `json:"merkle_tree_root"`
-	Timestamp      int64         `json:"timestamp"`
 	Difficulty     int32         `json:"difficulty"`
-	Kind           string        `json:"kind"`
 	Address        string        `json:"address"`
 }
 

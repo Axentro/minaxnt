@@ -62,7 +62,6 @@ func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (mr Minin
 		if c.StopClient.IsSet() {
 			return MiningResult{}, true
 		}
-		block.Timestamp = time.Now().Unix()
 
 		if nonce == math.MaxUint64 {
 			nonce = 0
@@ -80,7 +79,7 @@ func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (mr Minin
 		if diff >= miningDifficulty {
 			mr.Nonce = block.Nonce
 			mr.Difficulty = block.Difficulty
-			mr.Timestamp = block.Timestamp
+			mr.Timestamp = time.Now().UTC().Unix() * time.Hour.Milliseconds()
 			mr.Sha256Sum = blockHashString
 			return mr, false
 		}
