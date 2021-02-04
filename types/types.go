@@ -78,7 +78,7 @@ type MessageResponse struct {
 }
 
 type PeerResponse struct {
-	Version          int32      `json:"version"`
+	Version          string     `json:"version"`
 	Block            MinerBlock `json:"block"`
 	MiningDifficulty int32      `json:"difficulty"`
 }
