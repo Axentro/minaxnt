@@ -57,7 +57,7 @@ func NewClient(clientName string, nodeURL string, walletAddr string, numProcess 
 		pool:        pond.New(numProcess, 0, pond.MinWorkers(numProcess)),
 		handshake: &types.MessageResponse{
 			Type:    types.TypeMinerHandshake,
-			Content: fmt.Sprintf("{\"version\":%d,\"address\":\"%s\",\"mid\":\"%s\"}", types.CoreVersion, walletAddr, minerID),
+			Content: fmt.Sprintf("{\"version\":\"%s\",\"address\":\"%s\",\"mid\":\"%s\"}", types.CoreVersion, walletAddr, minerID),
 		},
 	}
 }

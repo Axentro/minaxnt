@@ -1,14 +1,14 @@
 package types
 
 const (
-	CoreVersion                    int = 1
-	TypeMinerHandshake             int = 0x0001
-	TypeMinerHandshakeAccepted     int = 0x0002
-	TypeMinerHandshakeRejected     int = 0x0003
-	TypeMinerFoundNonce            int = 0x0004
-	TypeMinerBlockUpdate           int = 0x0005
-	TypeMinerBlockDifficultyAdjust int = 0x0006
-	TypeMinerBlockInvalid          int = 0x0007
+	CoreVersion                    string = "2.0.0"
+	TypeMinerHandshake             int    = 0x0001
+	TypeMinerHandshakeAccepted     int    = 0x0002
+	TypeMinerHandshakeRejected     int    = 0x0003
+	TypeMinerFoundNonce            int    = 0x0004
+	TypeMinerBlockUpdate           int    = 0x0005
+	TypeMinerBlockDifficultyAdjust int    = 0x0006
+	TypeMinerBlockInvalid          int    = 0x0007
 )
 
 type Sender struct {
