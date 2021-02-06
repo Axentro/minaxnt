@@ -16,45 +16,44 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/klauspost/cpuid/v2"
 	log "github.com/sirupsen/logrus"
-	"github.com/tevino/abool"
 )
 
 type Client struct {
 	sync.Mutex
-	ClientName  string
-	CPUModel    string
-	CPUFeatures string
-	CPUCores    string
-	CPUCaches   string
-	NodeURL     string
-	conn        *websocket.Conn
-	sendChan    chan *types.MessageResponse
-	MinerID     string
-	Address     string
-	Process     int
-	StopClient  *abool.AtomicBool
-	Stats       *Stats
-	pool        *pond.WorkerPool
-	handshake   *types.MessageResponse
+	ClientName     string
+	CPUModel       string
+	CPUFeatures    string
+	CPUCores       string
+	CPUCaches      string
+	NodeURL        string
+	conn           *websocket.Conn
+	sendChan       chan *types.MessageResponse
+	MinerID        string
+	Address        string
+	Process        int
+	StopMiningChan chan bool
+	Stats          *Stats
+	pool           *pond.WorkerPool
+	handshake      *types.MessageResponse
 }
 
 func NewClient(clientName string, nodeURL string, walletAddr string, numProcess int) *Client {
 	minerID := strings.Replace(uuid.New().String(), "-", "", -1)
 	return &Client{
-		ClientName:  clientName,
-		CPUModel:    cpuModel(),
-		CPUFeatures: cpuFeatures(),
-		CPUCores:    fmt.Sprintf("Physical => %d, Logical => %d, Threads/core => %d", cpuid.CPU.PhysicalCores, cpuid.CPU.LogicalCores, cpuid.CPU.ThreadsPerCore),
-		CPUCaches:   fmt.Sprintf("L2 => %s, L3 => %s", humanize.Bytes(uint64(cpuid.CPU.Cache.L2)), humanize.Bytes(uint64(cpuid.CPU.Cache.L3))),
-		NodeURL:     nodeURL,
-		conn:        buildConn(nodeURL, false),
-		sendChan:    make(chan *types.MessageResponse),
-		MinerID:     minerID,
-		Address:     walletAddr,
-		Process:     numProcess,
-		StopClient:  abool.New(),
-		Stats:       NewStats(),
-		pool:        pond.New(numProcess, 0, pond.MinWorkers(numProcess)),
+		ClientName:     clientName,
+		CPUModel:       cpuModel(),
+		CPUFeatures:    cpuFeatures(),
+		CPUCores:       fmt.Sprintf("Physical => %d, Logical => %d, Threads/core => %d", cpuid.CPU.PhysicalCores, cpuid.CPU.LogicalCores, cpuid.CPU.ThreadsPerCore),
+		CPUCaches:      fmt.Sprintf("L2 => %s, L3 => %s", humanize.Bytes(uint64(cpuid.CPU.Cache.L2)), humanize.Bytes(uint64(cpuid.CPU.Cache.L3))),
+		NodeURL:        nodeURL,
+		conn:           buildConn(nodeURL, false),
+		sendChan:       make(chan *types.MessageResponse),
+		MinerID:        minerID,
+		Address:        walletAddr,
+		Process:        numProcess,
+		StopMiningChan: make(chan bool, numProcess),
+		Stats:          NewStats(),
+		pool:           pond.New(numProcess, 0, pond.MinWorkers(numProcess)),
 		handshake: &types.MessageResponse{
 			Type:    types.TypeMinerHandshake,
 			Content: fmt.Sprintf("{\"version\":\"%s\",\"address\":\"%s\",\"mid\":\"%s\"}", types.CoreVersion, walletAddr, minerID),
@@ -157,18 +156,11 @@ func (c *Client) Start() {
 	c.sendHandshake()
 }
 
-func (c *Client) startMining() {
-	c.StopClient.UnSet()
-}
-
 func (c *Client) stopMining() {
-	c.StopClient.Set()
+	for i := 0; i < c.Process; i++ {
+		c.StopMiningChan <- true
+	}
 	c.pool.StopAndWait()
-}
-
-func (c *Client) restartMining() {
-	c.stopMining()
-	c.startMining()
 }
 
 func (c *Client) foundNonce(resp types.PeerResponse, workerID int) {
@@ -215,8 +207,6 @@ func (c *Client) resetConnOrFail() {
 	log.Warn("Node connection established from error")
 
 	c.sendHandshake()
-
-	c.startMining()
 }
 
 func (c *Client) handleError(err error) {
@@ -241,11 +231,6 @@ func (c *Client) handleError(err error) {
 
 func (c *Client) send() {
 	for {
-		if c.StopClient.IsSet() {
-			time.Sleep(1 * time.Second)
-			continue
-		}
-
 		data, ok := <-c.sendChan
 		if !ok {
 			_ = c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
@@ -260,11 +245,6 @@ func (c *Client) send() {
 
 func (c *Client) recv() {
 	for {
-		if c.StopClient.IsSet() {
-			time.Sleep(1 * time.Second)
-			continue
-		}
-
 		log.Debug("Waiting for node data...")
 
 		result := types.MessageResponse{}
@@ -276,9 +256,9 @@ func (c *Client) recv() {
 
 		switch result.Type {
 		case types.TypeMinerBlockInvalid:
+			c.stopMining()
+			
 			log.Debug("[MINER_BLOCK_INVALID]")
-
-			c.restartMining()
 
 			resp := types.PeerResponseWithReason{}
 			err = json.Unmarshal([]byte(result.Content), &resp)
@@ -286,7 +266,7 @@ func (c *Client) recv() {
 				log.Error("Can't parse mining block data: ", err)
 				return
 			}
-			log.Errorf("[MINING BLOCK INVALID]: %s", resp.Reason)
+			log.Warnf("[MINING BLOCK INVALID]: %s", resp.Reason)
 			log.Warnf("[MINING BLOCK UPDATE (last was invalid)]: block index %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
 			for i := 0; i < c.Process; i++ {
 				func(workerID int) {
@@ -296,9 +276,9 @@ func (c *Client) recv() {
 				}(i)
 			}
 		case types.TypeMinerBlockDifficultyAdjust:
-			log.Debug("[MINER_BLOCK_DIFFICULTY_ADJUST]")
+			c.stopMining()
 
-			c.restartMining()
+			log.Debug("[MINER_BLOCK_DIFFICULTY_ADJUST]")
 
 			resp := types.PeerResponseWithReason{}
 			err = json.Unmarshal([]byte(result.Content), &resp)
@@ -316,9 +296,9 @@ func (c *Client) recv() {
 				}(i)
 			}
 		case types.TypeMinerBlockUpdate:
-			log.Debug("[MINER_BLOCK_UPDATE]")
+			c.stopMining()
 
-			c.restartMining()
+			log.Debug("[MINER_BLOCK_UPDATE]")
 
 			resp := types.PeerResponse{}
 			err = json.Unmarshal([]byte(result.Content), &resp)

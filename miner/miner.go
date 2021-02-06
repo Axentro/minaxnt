@@ -59,8 +59,10 @@ func Mining(block types.MinerBlock, miningDifficulty int32, c *Client) (mr Minin
 	nonce := rand.Uint64()
 	block.Difficulty = miningDifficulty
 	for {
-		if c.StopClient.IsSet() {
+		select {
+		case <-c.StopMiningChan:
 			return MiningResult{}, true
+		default:
 		}
 
 		if nonce == math.MaxUint64 {
