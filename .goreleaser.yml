@@ -1,0 +1,60 @@
+project_name: minaxnt
+
+env:
+  - CGO_ENABLED=0
+  - GO111MODULE=on
+before:
+  hooks:
+    - go generate ./...
+    - go mod tidy
+    - go mod download
+builds:
+  - 
+    goos:
+      - linux
+      - windows
+      - darwin
+      - freebsd
+      - android
+    goarch:
+      - 386
+      - amd64
+      - arm
+      - arm64
+    ignore:
+      - goos: freebsd
+        goarch: arm
+      - goos: freebsd
+        goarch: arm64
+      - goos: android
+        goarch: 386
+      - goos: android
+        goarch: amd64
+      - goos: android
+        goarch: arm
+        goarm: 6
+    flags:
+      - -tags=kqueue
+      - -trimpath
+    ldflags:
+      - -s -w -X "main.Version={{ .Tag }}"
+archives:
+  - replacements:
+      darwin: darwin
+      linux: linux
+      windows: windows
+      386: i386
+      amd64: x86_64
+    format_overrides:
+      - goos: windows
+        format: zip
+checksum:
+  name_template: "checksums.txt"
+snapshot:
+  name_template: "{{ .Tag }}"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
