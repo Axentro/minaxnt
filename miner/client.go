@@ -18,42 +18,49 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type BlockInfo struct {
+	BlockIndex       int64
+	MiningDifficulty int32
+}
+
 type Client struct {
 	sync.Mutex
-	ClientName     string
-	CPUModel       string
-	CPUFeatures    string
-	CPUCores       string
-	CPUCaches      string
-	NodeURL        string
-	conn           *websocket.Conn
-	sendChan       chan *types.MessageResponse
-	MinerID        string
-	Address        string
-	Process        int
-	StopMiningChan chan bool
-	Stats          *Stats
-	pool           *pond.WorkerPool
-	handshake      *types.MessageResponse
+	ClientName       string
+	CPUModel         string
+	CPUFeatures      string
+	CPUCores         string
+	CPUCaches        string
+	NodeURL          string
+	conn             *websocket.Conn
+	sendChan         chan *types.MessageResponse
+	MinerID          string
+	Address          string
+	Process          int
+	StopMiningChan   chan bool
+	CurrentBlockInfo *BlockInfo
+	Stats            *Stats
+	pool             *pond.WorkerPool
+	handshake        *types.MessageResponse
 }
 
 func NewClient(clientName string, nodeURL string, walletAddr string, numProcess int) *Client {
 	minerID := strings.Replace(uuid.New().String(), "-", "", -1)
 	return &Client{
-		ClientName:     clientName,
-		CPUModel:       cpuModel(),
-		CPUFeatures:    cpuFeatures(),
-		CPUCores:       fmt.Sprintf("Physical => %d, Logical => %d, Threads/core => %d", cpuid.CPU.PhysicalCores, cpuid.CPU.LogicalCores, cpuid.CPU.ThreadsPerCore),
-		CPUCaches:      fmt.Sprintf("L2 => %s, L3 => %s", humanize.Bytes(uint64(cpuid.CPU.Cache.L2)), humanize.Bytes(uint64(cpuid.CPU.Cache.L3))),
-		NodeURL:        nodeURL,
-		conn:           buildConn(nodeURL, false),
-		sendChan:       make(chan *types.MessageResponse),
-		MinerID:        minerID,
-		Address:        walletAddr,
-		Process:        numProcess,
-		StopMiningChan: make(chan bool, numProcess),
-		Stats:          NewStats(),
-		pool:           pond.New(numProcess, 0, pond.MinWorkers(numProcess)),
+		ClientName:       clientName,
+		CPUModel:         cpuModel(),
+		CPUFeatures:      cpuFeatures(),
+		CPUCores:         fmt.Sprintf("Physical => %d, Logical => %d, Threads/core => %d", cpuid.CPU.PhysicalCores, cpuid.CPU.LogicalCores, cpuid.CPU.ThreadsPerCore),
+		CPUCaches:        fmt.Sprintf("L2 => %s, L3 => %s", humanize.Bytes(uint64(cpuid.CPU.Cache.L2)), humanize.Bytes(uint64(cpuid.CPU.Cache.L3))),
+		NodeURL:          nodeURL,
+		conn:             buildConn(nodeURL, false),
+		sendChan:         make(chan *types.MessageResponse),
+		MinerID:          minerID,
+		Address:          walletAddr,
+		Process:          numProcess,
+		StopMiningChan:   make(chan bool, numProcess),
+		CurrentBlockInfo: &BlockInfo{},
+		Stats:            NewStats(),
+		pool:             pond.New(numProcess, 0, pond.MinWorkers(numProcess)),
 		handshake: &types.MessageResponse{
 			Type:    types.TypeMinerHandshake,
 			Content: fmt.Sprintf("{\"version\":\"%s\",\"address\":\"%s\",\"mid\":\"%s\"}", types.CoreVersion, walletAddr, minerID),
@@ -74,37 +81,41 @@ func cpuModel() string {
 func cpuFeatures() string {
 	var cpuFeaturesBuffer bytes.Buffer
 
+	cpuFeaturesBuffer.WriteString("SSE:")
 	if cpuid.CPU.Has(cpuid.SSE) {
-		cpuFeaturesBuffer.WriteString("SSE:[✔]")
-	}
-	if cpuid.CPU.Has(cpuid.SSE2) {
-		if cpuFeaturesBuffer.Len() != 0 {
-			cpuFeaturesBuffer.WriteString(", ")
-		}
-		cpuFeaturesBuffer.WriteString("SSE2:[✔]")
-	}
-	if cpuid.CPU.Has(cpuid.SSE4) {
-		if cpuFeaturesBuffer.Len() != 0 {
-			cpuFeaturesBuffer.WriteString(", ")
-		}
-		cpuFeaturesBuffer.WriteString("SSE4:[✔]")
-	}
-	if cpuid.CPU.Has(cpuid.AVX) {
-		if cpuFeaturesBuffer.Len() != 0 {
-			cpuFeaturesBuffer.WriteString(", ")
-		}
-		cpuFeaturesBuffer.WriteString("AVX:[✔]")
-	}
-	if cpuid.CPU.Has(cpuid.AVX2) {
-		if cpuFeaturesBuffer.Len() != 0 {
-			cpuFeaturesBuffer.WriteString(", ")
-		}
-		cpuFeaturesBuffer.WriteString("AVX2:[✔]")
-	}
-
-	if cpuFeaturesBuffer.Len() == 0 {
+		cpuFeaturesBuffer.WriteString("[✔]")
+	} else {
 		cpuFeaturesBuffer.WriteString("[-]")
 	}
+
+	cpuFeaturesBuffer.WriteString(", SSE2:")
+	if cpuid.CPU.Has(cpuid.SSE2) {
+		cpuFeaturesBuffer.WriteString("[✔]")
+	} else {
+		cpuFeaturesBuffer.WriteString("[-]")
+	}
+
+	cpuFeaturesBuffer.WriteString(", SSE4:")
+	if cpuid.CPU.Has(cpuid.SSE4) {
+		cpuFeaturesBuffer.WriteString("[✔]")
+	} else {
+		cpuFeaturesBuffer.WriteString("[-]")
+	}
+
+	cpuFeaturesBuffer.WriteString(", AVX:")
+	if cpuid.CPU.Has(cpuid.AVX) {
+		cpuFeaturesBuffer.WriteString("[✔]")
+	} else {
+		cpuFeaturesBuffer.WriteString("[-]")
+	}
+
+	cpuFeaturesBuffer.WriteString(", AVX2:")
+	if cpuid.CPU.Has(cpuid.AVX2) {
+		cpuFeaturesBuffer.WriteString("[✔]")
+	} else {
+		cpuFeaturesBuffer.WriteString("[-]")
+	}
+
 	return cpuFeaturesBuffer.String()
 }
 
@@ -194,6 +205,10 @@ func (c *Client) foundNonce(resp types.PeerResponse, workerID int) {
 			Content: string(mncJSON),
 		}
 
+		if c.CurrentBlockInfo.BlockIndex != resp.Block.Index || c.CurrentBlockInfo.MiningDifficulty != resp.MiningDifficulty {
+			log.Warnf("Mining result ignored: ComputedBlockInfo {index: %d, miningDiff: %d} - NewBlockInfo {index: %d, miningDiff: %d}", resp.Block.Index, resp.MiningDifficulty, c.CurrentBlockInfo.BlockIndex, c.CurrentBlockInfo.MiningDifficulty)
+			continue
+		}
 		c.sendChan <- &resultNonce
 		log.Debugf("Miner nonce content sent to node: %v", resultNonce)
 	}
@@ -257,15 +272,17 @@ func (c *Client) recv() {
 		switch result.Type {
 		case types.TypeMinerBlockInvalid:
 			c.stopMining()
-			
+
 			log.Debug("[MINER_BLOCK_INVALID]")
 
 			resp := types.PeerResponseWithReason{}
 			err = json.Unmarshal([]byte(result.Content), &resp)
 			if err != nil {
 				log.Error("Can't parse mining block data: ", err)
-				return
+				continue
 			}
+			c.CurrentBlockInfo.BlockIndex = resp.Block.Index
+			c.CurrentBlockInfo.MiningDifficulty = resp.MiningDifficulty
 			log.Warnf("[MINING BLOCK INVALID]: %s", resp.Reason)
 			log.Warnf("[MINING BLOCK UPDATE (last was invalid)]: block index %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
 			for i := 0; i < c.Process; i++ {
@@ -284,8 +301,10 @@ func (c *Client) recv() {
 			err = json.Unmarshal([]byte(result.Content), &resp)
 			if err != nil {
 				log.Error("Can't parse mining block data: ", err)
-				return
+				continue
 			}
+			c.CurrentBlockInfo.BlockIndex = resp.Block.Index
+			c.CurrentBlockInfo.MiningDifficulty = resp.MiningDifficulty
 			log.Infof("[MINING DIFFICULTY ADJUST]: %s", resp.Reason)
 			log.Infof("=> [BLOCK INFO]: block index %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
 			for i := 0; i < c.Process; i++ {
@@ -304,8 +323,10 @@ func (c *Client) recv() {
 			err = json.Unmarshal([]byte(result.Content), &resp)
 			if err != nil {
 				log.Error("Can't parse mining block data: ", err)
-				return
+				continue
 			}
+			c.CurrentBlockInfo.BlockIndex = resp.Block.Index
+			c.CurrentBlockInfo.MiningDifficulty = resp.MiningDifficulty
 			log.Infof("[NEW BLOCK]: block index %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
 			for i := 0; i < c.Process; i++ {
 				func(workerID int) {
@@ -321,8 +342,10 @@ func (c *Client) recv() {
 			err = json.Unmarshal([]byte(result.Content), &resp)
 			if err != nil {
 				log.Error("Can't parse mining block data: ", err)
-				return
+				continue
 			}
+			c.CurrentBlockInfo.BlockIndex = resp.Block.Index
+			c.CurrentBlockInfo.MiningDifficulty = resp.MiningDifficulty
 			log.Infof("[START MINING]: block index %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
 
 			for i := 0; i < c.Process; i++ {
