@@ -355,13 +355,13 @@ func (c *Client) recv() {
 					})
 				}(i)
 			}
-		case types.TypeMinerHandshakeRejected:
+		case types.TypeMinerHandshakeRejected, types.TypeMinerExceedRate:
 			reason := types.PeerRejectedResponse{}
 			err = json.Unmarshal([]byte(result.Content), &reason)
 			if err != nil {
 				log.Error("Can't convert rejected message")
 			}
-			log.Fatal("Handshake rejected: ", reason.Reason)
+			log.Fatal("Query rejected: ", reason.Reason)
 		default:
 			log.Warnf("Unknonw response type %d: %v", result.Type, result)
 		}

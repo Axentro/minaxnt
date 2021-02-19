@@ -9,6 +9,7 @@ const (
 	TypeMinerBlockUpdate           int    = 0x0005
 	TypeMinerBlockDifficultyAdjust int    = 0x0006
 	TypeMinerBlockInvalid          int    = 0x0007
+	TypeMinerExceedRate            int    = 0x0008
 )
 
 type Sender struct {
