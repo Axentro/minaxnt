@@ -284,7 +284,7 @@ func (c *Client) recv() {
 			c.CurrentBlockInfo.BlockIndex = resp.Block.Index
 			c.CurrentBlockInfo.MiningDifficulty = resp.MiningDifficulty
 			log.Warnf("[MINING BLOCK INVALID]: %s", resp.Reason)
-			log.Warnf("[MINING BLOCK UPDATE (last was invalid)]: block index %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
+			log.Warnf("[MINING BLOCK UPDATE (last was invalid)]: block index %d at approximate mining difficulty: %d", resp.Block.Index, resp.MiningDifficulty)
 			for i := 0; i < c.Process; i++ {
 				func(workerID int) {
 					c.pool.Submit(func() {
@@ -306,7 +306,7 @@ func (c *Client) recv() {
 			c.CurrentBlockInfo.BlockIndex = resp.Block.Index
 			c.CurrentBlockInfo.MiningDifficulty = resp.MiningDifficulty
 			log.Infof("[MINING DIFFICULTY ADJUST]: %s", resp.Reason)
-			log.Infof("=> [BLOCK INFO]: block index %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
+			log.Infof("=> [BLOCK INFO]: block index %d at approximate mining difficulty: %d", resp.Block.Index, resp.MiningDifficulty)
 			for i := 0; i < c.Process; i++ {
 				func(workerID int) {
 					c.pool.Submit(func() {
@@ -327,7 +327,7 @@ func (c *Client) recv() {
 			}
 			c.CurrentBlockInfo.BlockIndex = resp.Block.Index
 			c.CurrentBlockInfo.MiningDifficulty = resp.MiningDifficulty
-			log.Infof("[NEW BLOCK]: block index %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
+			log.Infof("[NEW BLOCK]: block index %d at approximate mining difficulty: %d", resp.Block.Index, resp.MiningDifficulty)
 			for i := 0; i < c.Process; i++ {
 				func(workerID int) {
 					c.pool.Submit(func() {
@@ -346,7 +346,7 @@ func (c *Client) recv() {
 			}
 			c.CurrentBlockInfo.BlockIndex = resp.Block.Index
 			c.CurrentBlockInfo.MiningDifficulty = resp.MiningDifficulty
-			log.Infof("[START MINING]: block index %d at approximate difficulty: %d", resp.Block.Index, resp.Block.Difficulty)
+			log.Infof("[START MINING]: block index %d at approximate mining difficulty: %d", resp.Block.Index, resp.MiningDifficulty)
 
 			for i := 0; i < c.Process; i++ {
 				func(workerID int) {
